@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase, getGuildSettings, applySettingsPatch, type GuildSettings } from '@/lib/supabase-client'
+import type { GuildSettings } from '@/lib/supabase-client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -43,7 +43,31 @@ export default function SettingsPage() {
     async function loadSettings() {
         try {
             setLoading(true)
-            const data = await getGuildSettings(guildId)
+            const response = await fetch(`/api/guilds/${guildId}/settings`, {
+                cache: 'no-store',
+            })
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    toast({
+                        title: 'Non authentifié',
+                        description: 'Veuillez vous connecter',
+                        variant: 'destructive',
+                    })
+                    return
+                }
+
+                // 404 or other errors - use defaults
+                toast({
+                    title: 'Serveur non configuré',
+                    description: 'Ce serveur n\'a pas encore de configuration. Des valeurs par défaut seront utilisées.',
+                    variant: 'default',
+                })
+                setSettings(getDefaultSettings(guildId))
+                return
+            }
+
+            const data = await response.json()
 
             if (!data) {
                 toast({
@@ -51,7 +75,6 @@ export default function SettingsPage() {
                     description: 'Ce serveur n\'a pas encore de configuration. Des valeurs par défaut seront utilisées.',
                     variant: 'default',
                 })
-                // Set defaults
                 setSettings(getDefaultSettings(guildId))
             } else {
                 setSettings(data)
@@ -82,8 +105,18 @@ export default function SettingsPage() {
         try {
             setSaving(true)
 
-            // Enqueue settings patch job
-            await applySettingsPatch(guildId, pendingChanges)
+            // Send PATCH request to save settings
+            const response = await fetch(`/api/guilds/${guildId}/settings`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(pendingChanges),
+            })
+
+            if (!response.ok) {
+                throw new Error('Erreur lors de la sauvegarde')
+            }
 
             toast({
                 title: 'Paramètres sauvegardés',

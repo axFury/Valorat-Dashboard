@@ -10,7 +10,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { supabase } from '@/lib/supabase-client'
 import type { GuildSettings } from '@/lib/supabase-client'
 import { Loader2 } from 'lucide-react'
 
@@ -35,33 +34,25 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
 
     async function loadRoles() {
         try {
-            const { data: job } = await supabase
-                .from('command_queue')
-                .insert({
-                    guild_id: guildId,
-                    action: 'listRoles',
-                    payload: {},
-                    status: 'pending',
-                })
-                .select()
-                .single()
+            const response = await fetch(`/api/guilds/${guildId}/roles`, {
+                cache: 'no-store',
+            })
 
-            if (!job) return
-
-            for (let i = 0; i < 10; i++) {
-                await new Promise((resolve) => setTimeout(resolve, 500))
-
-                const { data: result } = await supabase
-                    .from('command_queue')
-                    .select('*')
-                    .eq('id', job.id)
-                    .single()
-
-                if (result?.status === 'done' && result.result?.roles) {
-                    setDiscordRoles(result.result.roles)
-                    break
-                }
+            if (!response.ok) {
+                console.error('Failed to load roles from API')
+                setLoading(false)
+                return
             }
+
+            const allRoles = await response.json()
+
+            // Transform to our format
+            const roles = allRoles.map((role: any) => ({
+                id: role.id,
+                name: role.name,
+            }))
+
+            setDiscordRoles(roles)
         } catch (error) {
             console.error('Error loading roles:', error)
         } finally {

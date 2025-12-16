@@ -10,7 +10,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { supabase } from '@/lib/supabase-client'
 import type { GuildSettings } from '@/lib/supabase-client'
 import { Loader2 } from 'lucide-react'
 
@@ -35,35 +34,27 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
 
     async function loadChannels() {
         try {
-            // Queue a job to list channels
-            const { data: job } = await supabase
-                .from('command_queue')
-                .insert({
-                    guild_id: guildId,
-                    action: 'listTextChannels',
-                    payload: {},
-                    status: 'pending',
-                })
-                .select()
-                .single()
+            const response = await fetch(`/api/guilds/${guildId}/channels`, {
+                cache: 'no-store',
+            })
 
-            if (!job) return
-
-            // Poll for result
-            for (let i = 0; i < 10; i++) {
-                await new Promise((resolve) => setTimeout(resolve, 500))
-
-                const { data: result } = await supabase
-                    .from('command_queue')
-                    .select('*')
-                    .eq('id', job.id)
-                    .single()
-
-                if (result?.status === 'done' && result.result?.channels) {
-                    setDiscordChannels(result.result.channels)
-                    break
-                }
+            if (!response.ok) {
+                console.error('Failed to load channels from API')
+                setLoading(false)
+                return
             }
+
+            const allChannels = await response.json()
+
+            // Filter text channels only (type 0 = GUILD_TEXT)
+            const textChannels = allChannels
+                .filter((ch: any) => ch.type === 0)
+                .map((ch: any) => ({
+                    id: ch.id,
+                    name: ch.name,
+                }))
+
+            setDiscordChannels(textChannels)
         } catch (error) {
             console.error('Error loading channels:', error)
         } finally {
