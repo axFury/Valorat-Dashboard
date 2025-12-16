@@ -14,7 +14,6 @@ import {
   ImageIcon,
   Megaphone,
   Target,
-  Settings,
   ChevronDown,
   User,
   Menu,
@@ -33,11 +32,10 @@ const getNavigation = (guildId?: string) => [
   { name: "Leaderboards", href: "/dashboard/leaderboards", icon: Trophy },
   { name: "Annonces", href: "/dashboard/announcements", icon: Megaphone },
   { name: "Valorant", href: "/dashboard/valorant", icon: Target },
-  { name: "Paramètres", href: guildId ? `/dashboard/${guildId}/settings` : "/dashboard/settings", icon: Settings },
 ]
 
 // Pages à restreindre aux admins/owners (ajoute ici si tu veux en masquer d’autres)
-const RESTRICTED_NAMES = new Set<string>(["Modération", "Annonces", "Paramètres"])
+const RESTRICTED_NAMES = new Set<string>(["Modération", "Annonces"])
 
 function hasAdminOrManageGuild(permStr?: string) {
   try {
