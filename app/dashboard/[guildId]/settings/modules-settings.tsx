@@ -11,8 +11,18 @@ interface ModulesSettingsProps {
 }
 
 export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
-    function toggle(key: keyof typeof modules) {
-        onChange({ ...modules, [key]: !modules[key] })
+    // Safety check for undefined modules
+    const safeModules = modules || {
+        music: false,
+        valorant: false,
+        moderation: false,
+        ai: false,
+        stats: false,
+        gifs: false,
+    }
+
+    function toggle(key: keyof typeof safeModules) {
+        onChange({ ...safeModules, [key]: !safeModules[key] })
     }
 
     return (
@@ -34,7 +44,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-music"
-                                checked={modules.music}
+                                checked={safeModules.music}
                                 onCheckedChange={() => toggle('music')}
                             />
                         </div>
@@ -49,7 +59,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-valorant"
-                                checked={modules.valorant}
+                                checked={safeModules.valorant}
                                 onCheckedChange={() => toggle('valorant')}
                             />
                         </div>
@@ -64,7 +74,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-ai"
-                                checked={modules.ai}
+                                checked={safeModules.ai}
                                 onCheckedChange={() => toggle('ai')}
                             />
                         </div>
@@ -79,7 +89,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-moderation"
-                                checked={modules.moderation}
+                                checked={safeModules.moderation}
                                 onCheckedChange={() => toggle('moderation')}
                             />
                         </div>
@@ -94,7 +104,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-stats"
-                                checked={modules.stats}
+                                checked={safeModules.stats}
                                 onCheckedChange={() => toggle('stats')}
                             />
                         </div>
@@ -109,7 +119,7 @@ export function ModulesSettings({ modules, onChange }: ModulesSettingsProps) {
                             </div>
                             <Switch
                                 id="module-gifs"
-                                checked={modules.gifs}
+                                checked={safeModules.gifs}
                                 onCheckedChange={() => toggle('gifs')}
                             />
                         </div>

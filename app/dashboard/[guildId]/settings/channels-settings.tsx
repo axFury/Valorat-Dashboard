@@ -66,6 +66,9 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
         onChange({ ...channels, [key]: value || null })
     }
 
+    // Safety check for undefined channels
+    const safeChannels = channels || {}
+
     if (loading) {
         return (
             <Card>
@@ -91,7 +94,7 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                         <div className="space-y-2">
                             <Label htmlFor="log-channel">📋 Salon de logs</Label>
                             <Select
-                                value={channels.log || ''}
+                                value={safeChannels.log || ''}
                                 onValueChange={(value) => updateChannel('log', value)}
                             >
                                 <SelectTrigger id="log-channel">
@@ -112,7 +115,7 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                         <div className="space-y-2">
                             <Label htmlFor="welcome-channel">👋 Salon de bienvenue</Label>
                             <Select
-                                value={channels.welcome || ''}
+                                value={safeChannels.welcome || ''}
                                 onValueChange={(value) => updateChannel('welcome', value)}
                             >
                                 <SelectTrigger id="welcome-channel">
@@ -133,7 +136,7 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                         <div className="space-y-2">
                             <Label htmlFor="mod-log-channel">🛡️ Logs de modération</Label>
                             <Select
-                                value={channels.mod_log || ''}
+                                value={safeChannels.mod_log || ''}
                                 onValueChange={(value) => updateChannel('mod_log', value)}
                             >
                                 <SelectTrigger id="mod-log-channel">
@@ -154,7 +157,7 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                         <div className="space-y-2">
                             <Label htmlFor="music-text-channel">🎵 Salon commandes musique</Label>
                             <Select
-                                value={channels.music_text || ''}
+                                value={safeChannels.music_text || ''}
                                 onValueChange={(value) => updateChannel('music_text', value)}
                             >
                                 <SelectTrigger id="music-text-channel">
@@ -175,7 +178,7 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                         <div className="space-y-2">
                             <Label htmlFor="valorant-updates-channel">🎮 Mises à jour Valorant</Label>
                             <Select
-                                value={channels.valorant_updates || ''}
+                                value={safeChannels.valorant_updates || ''}
                                 onValueChange={(value) => updateChannel('valorant_updates', value)}
                             >
                                 <SelectTrigger id="valorant-updates-channel">

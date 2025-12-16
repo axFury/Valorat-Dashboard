@@ -64,6 +64,9 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
         onChange({ ...roles, [key]: value || null })
     }
 
+    // Safety check for undefined roles
+    const safeRoles = roles || {}
+
     if (loading) {
         return (
             <Card>
@@ -86,7 +89,7 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                         <div className="space-y-2">
                             <Label htmlFor="admin-role">👑 Admin</Label>
                             <Select
-                                value={roles.admin || ''}
+                                value={safeRoles.admin || ''}
                                 onValueChange={(value) => updateRole('admin', value)}
                             >
                                 <SelectTrigger id="admin-role">
@@ -106,7 +109,7 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                         <div className="space-y-2">
                             <Label htmlFor="moderator-role">🛡️ Modérateur</Label>
                             <Select
-                                value={roles.moderator || ''}
+                                value={safeRoles.moderator || ''}
                                 onValueChange={(value) => updateRole('moderator', value)}
                             >
                                 <SelectTrigger id="moderator-role">
@@ -126,7 +129,7 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                         <div className="space-y-2">
                             <Label htmlFor="dj-role">🎧 DJ (Musique)</Label>
                             <Select
-                                value={roles.dj || ''}
+                                value={safeRoles.dj || ''}
                                 onValueChange={(value) => updateRole('dj', value)}
                             >
                                 <SelectTrigger id="dj-role">
@@ -146,7 +149,7 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                         <div className="space-y-2">
                             <Label htmlFor="muted-role">🔇 Muet</Label>
                             <Select
-                                value={roles.muted || ''}
+                                value={safeRoles.muted || ''}
                                 onValueChange={(value) => updateRole('muted', value)}
                             >
                                 <SelectTrigger id="muted-role">
@@ -166,7 +169,7 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                         <div className="space-y-2">
                             <Label htmlFor="verified-role">✅ Vérifié</Label>
                             <Select
-                                value={roles.verified || ''}
+                                value={safeRoles.verified || ''}
                                 onValueChange={(value) => updateRole('verified', value)}
                             >
                                 <SelectTrigger id="verified-role">
