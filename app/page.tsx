@@ -40,19 +40,30 @@ export default function LandingPage() {
     window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`
   }
 
+  const handleBotInvite = () => {
+    // Redirect to Discord Bot OAuth with fixed client ID
+    window.location.href = "https://discord.com/oauth2/authorize?client_id=1434827695799275613"
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <Image src="/valoratbot-logo.png" alt="Valoratbot" width={32} height={32} className="h-8 w-8" background="transparent"/>
+            <Image src="/valoratbot-logo.png" alt="Valoratbot" width={32} height={32} className="h-8 w-8" background="transparent" />
             <span className="text-xl font-bold text-foreground">Valoratbot</span>
           </div>
-          <Button onClick={handleDiscordLogin} className="gap-2">
-            <Bot className="h-4 w-4" />
-            Se connecter avec Discord
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleBotInvite} variant="outline" className="gap-2">
+              <Bot className="h-4 w-4" />
+              Ajouter le bot
+            </Button>
+            <Button onClick={handleDiscordLogin} className="gap-2">
+              <Bot className="h-4 w-4" />
+              Se connecter avec Discord
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -113,10 +124,16 @@ export default function LandingPage() {
               <h2 className="text-3xl font-bold text-foreground">Prêt à améliorer votre serveur ?</h2>
               <p className="text-muted-foreground">Connectez-vous avec Discord et accédez au tableau de bord</p>
             </div>
-            <Button size="lg" onClick={handleDiscordLogin} className="gap-2 px-8">
-              <Bot className="h-5 w-5" />
-              Se connecter maintenant
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button size="lg" onClick={handleBotInvite} variant="outline" className="gap-2 px-8">
+                <Bot className="h-5 w-5" />
+                Ajouter le bot
+              </Button>
+              <Button size="lg" onClick={handleDiscordLogin} className="gap-2 px-8">
+                <Bot className="h-5 w-5" />
+                Se connecter maintenant
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>

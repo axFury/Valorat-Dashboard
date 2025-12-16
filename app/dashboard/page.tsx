@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Activity, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
+import { ActivityLog } from "@/components/activity-log"
 import {
   LineChart,
   Line,
@@ -215,8 +216,8 @@ export default function DashboardPage() {
               {botStatus && botStatus.latency_ms < 100
                 ? "Excellent"
                 : botStatus && botStatus.latency_ms < 200
-                ? "Bon"
-                : "Moyen"}
+                  ? "Bon"
+                  : "Moyen"}
             </p>
           </CardContent>
         </Card>
@@ -229,6 +230,17 @@ export default function DashboardPage() {
           <CardContent>
             <p className="text-2xl font-bold">{loading ? "..." : botStatus?.version || "N/A"}</p>
             <p className="text-xs text-muted-foreground">Build du bot</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Uptime</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{loading ? "..." : fmtMs(botStatus?.uptime_ms)}</p>
+            <p className="text-xs text-muted-foreground">Temps en ligne</p>
           </CardContent>
         </Card>
       </div>
@@ -295,6 +307,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activité récente */}
+      <Card className="border-border bg-card">
+        <CardHeader>
+          <CardTitle>Activité récente</CardTitle>
+          <CardDescription>Dernières commandes exécutées sur ce serveur</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ActivityLog guildId={typeof window !== "undefined" ? localStorage.getItem("selected_guild") || "" : ""} />
+        </CardContent>
+      </Card>
     </div>
   )
 }

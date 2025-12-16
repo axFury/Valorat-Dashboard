@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { supabaseServer } from "@/lib/supabase-server"
 
 type UserGuild = { id: string; name: string; icon: string | null; owner: boolean; permissions: string }
 
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "not_authenticated" }, { status: 401 })
     }
 
-    // 1) guilds de l’utilisateur
+    // 1) guilds de l'utilisateur
     const u = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${userToken}` },
       cache: "no-store",
@@ -23,30 +24,24 @@ export async function GET(req: NextRequest) {
     }
     const userGuilds = (await u.json()) as UserGuild[]
 
-    // 2) guilds où le bot est présent (backend bot)
-    // essaie BACKEND_URL puis NEXT_PUBLIC_BACKEND_URL
-    const base =
-      process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
+    // 2) guilds où le bot est présent (depuis Supabase)
     let botGuildIds: string[] = []
-    if (base && process.env.BOT_API_KEY) {
-      try {
-        const b = await fetch(`${base.replace(/\/+$/, "")}/api/bot/guilds`, {
-          headers: { "x-api-key": process.env.BOT_API_KEY },
-          cache: "no-store",
-        })
-        if (b.ok) {
-          const data = await b.json().catch(() => ({}))
-          // accepte { guilds: [{id,...}]} ou un simple tableau
-          const arr = Array.isArray(data) ? data : (Array.isArray(data?.guilds) ? data.guilds : [])
-          botGuildIds = arr.map((g: any) => String(g?.id ?? g)).filter(Boolean)
-        }
-      } catch {}
+    try {
+      const { data: botGuilds, error } = await supabaseServer
+        .from("bot_guilds")
+        .select("guild_id")
+
+      if (!error && botGuilds) {
+        botGuildIds = botGuilds.map((g) => g.guild_id)
+      }
+    } catch (e) {
+      console.error("[guilds] Failed to fetch bot_guilds from Supabase:", e)
     }
 
     // 3) intersection (si on connaît les guilds du bot)
     const final = botGuildIds.length
       ? userGuilds.filter(g => botGuildIds.includes(g.id))
-      : userGuilds // fallback: montrer les guilds user même si backend indispo
+      : userGuilds // fallback: montrer les guilds user même si Supabase indispo
 
     // 4) renvoyer un format propre
     return NextResponse.json(
@@ -59,6 +54,7 @@ export async function GET(req: NextRequest) {
       }))
     )
   } catch (e) {
+    console.error("[guilds] Unexpected error:", e)
     return NextResponse.json({ error: "unexpected" }, { status: 500 })
   }
 }

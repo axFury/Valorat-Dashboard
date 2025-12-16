@@ -106,10 +106,15 @@ export default function ServersPage() {
           <Card className="mx-auto max-w-md">
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
-                Aucun serveur trouvé. Assurez-vous que le bot est présent sur vos serveurs.
+                Aucun serveur où le bot est présent. Invitez le bot à votre serveur pour commencer.
               </p>
-              <Button className="mt-4" onClick={() => router.push("/")}>
-                Retour
+              <Button
+                className="mt-4"
+                onClick={() => {
+                  window.location.href = "https://discord.com/oauth2/authorize?client_id=1434827695799275613"
+                }}
+              >
+                Inviter le bot
               </Button>
             </CardContent>
           </Card>
