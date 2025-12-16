@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { supabase, getUserGuilds, type UserGuild } from '@/lib/supabase-client'
+import { type UserGuild } from '@/lib/supabase-client'
 import {
     Select,
     SelectContent,
@@ -26,15 +26,26 @@ export function GuildSelector() {
 
     async function loadUserGuilds() {
         try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser()
-            if (!user) {
-                router.push('/login')
+            // Load guilds from API (uses Discord OAuth)
+            const response = await fetch('/api/guilds', { cache: 'no-store' })
+
+            if (!response.ok) {
+                console.error('Failed to load guilds from API')
+                setLoading(false)
                 return
             }
 
-            const userGuilds = await getUserGuilds(user.id)
+            const apiGuilds = await response.json()
+
+            // Transform API guilds to UserGuild format
+            const userGuilds: UserGuild[] = apiGuilds.map((g: any) => ({
+                guild_id: g.id,
+                user_id: '', // Not needed from API
+                permissions: g.permissions || '0',
+                is_owner: g.owner || false,
+                created_at: new Date().toISOString(),
+            }))
+
             setGuilds(userGuilds)
 
             // Load selected guild from localStorage or use first guild
