@@ -4,7 +4,9 @@ import { cookies } from "next/headers"
 export async function GET(request: NextRequest, { params }: { params: { guildId: string } }) {
   try {
     const cookieStore = await cookies()
-    const accessToken = cookieStore.get("discord_access_token")?.value
+    const accessToken =
+      cookieStore.get('dc_token')?.value ||
+      cookieStore.get('discord_token')?.value
 
     if (!accessToken) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 })

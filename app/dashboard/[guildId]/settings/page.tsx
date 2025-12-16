@@ -11,15 +11,10 @@ import { Loader2, Save, Settings as SettingsIcon } from 'lucide-react'
 import { GuildSelector } from '@/components/guild-selector'
 
 // Import tab components
-import { GeneralSettings } from './general-settings'
 import { ModulesSettings } from './modules-settings'
 import { ChannelsSettings } from './channels-settings'
 import { RolesSettings } from './roles-settings'
-import { MusicSettings } from './music-settings'
 import { ValorantSettings } from './valorant-settings'
-import { AISettings } from './ai-settings'
-import { ModerationSettings } from './moderation-settings'
-import { WelcomeSettings } from './welcome-settings'
 import { StatsSettings } from './stats-settings'
 
 export default function SettingsPage() {
@@ -209,26 +204,14 @@ export default function SettingsPage() {
             <GuildSelector />
 
             {/* Settings Tabs */}
-            <Tabs defaultValue="general" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
-                    <TabsTrigger value="general">Général</TabsTrigger>
+            <Tabs defaultValue="modules" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="modules">Modules</TabsTrigger>
                     <TabsTrigger value="channels">Salons</TabsTrigger>
                     <TabsTrigger value="roles">Rôles</TabsTrigger>
-                    <TabsTrigger value="music">Musique</TabsTrigger>
                     <TabsTrigger value="valorant">Valorant</TabsTrigger>
-                    <TabsTrigger value="ai">IA/LLM</TabsTrigger>
-                    <TabsTrigger value="moderation">Modération</TabsTrigger>
-                    <TabsTrigger value="welcome">Bienvenue</TabsTrigger>
                     <TabsTrigger value="stats">Stats</TabsTrigger>
                 </TabsList>
-
-                <TabsContent value="general">
-                    <GeneralSettings
-                        settings={currentSettings}
-                        onChange={(updates) => updateSettings('general', updates)}
-                    />
-                </TabsContent>
 
                 <TabsContent value="modules">
                     <ModulesSettings
@@ -253,40 +236,10 @@ export default function SettingsPage() {
                     />
                 </TabsContent>
 
-                <TabsContent value="music">
-                    <MusicSettings
-                        music={currentSettings.music}
-                        onChange={(music) => updateSettings('music', music)}
-                    />
-                </TabsContent>
-
                 <TabsContent value="valorant">
                     <ValorantSettings
                         valorant={currentSettings.valorant}
                         onChange={(valorant) => updateSettings('valorant', valorant)}
-                    />
-                </TabsContent>
-
-                <TabsContent value="ai">
-                    <AISettings
-                        ai={currentSettings.ai}
-                        onChange={(ai) => updateSettings('ai', ai)}
-                    />
-                </TabsContent>
-
-                <TabsContent value="moderation">
-                    <ModerationSettings
-                        moderation={currentSettings.moderation}
-                        onChange={(moderation) => updateSettings('moderation', moderation)}
-                    />
-                </TabsContent>
-
-                <TabsContent value="welcome">
-                    <WelcomeSettings
-                        welcome={currentSettings.welcome}
-                        goodbye={currentSettings.goodbye}
-                        onWelcomeChange={(welcome) => updateSettings('welcome', welcome)}
-                        onGoodbyeChange={(goodbye) => updateSettings('goodbye', goodbye)}
                     />
                 </TabsContent>
 

@@ -96,7 +96,6 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordRoles.map((role) => (
                                         <SelectItem key={role.id} value={role.id}>
                                             @{role.name}
@@ -116,7 +115,6 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordRoles.map((role) => (
                                         <SelectItem key={role.id} value={role.id}>
                                             @{role.name}
@@ -136,7 +134,6 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordRoles.map((role) => (
                                         <SelectItem key={role.id} value={role.id}>
                                             @{role.name}
@@ -156,7 +153,6 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordRoles.map((role) => (
                                         <SelectItem key={role.id} value={role.id}>
                                             @{role.name}
@@ -176,7 +172,6 @@ export function RolesSettings({ roles, onChange, guildId }: RolesSettingsProps) 
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordRoles.map((role) => (
                                         <SelectItem key={role.id} value={role.id}>
                                             @{role.name}

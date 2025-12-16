@@ -101,7 +101,6 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordChannels.map((ch) => (
                                         <SelectItem key={ch.id} value={ch.id}>
                                             #{ch.name}
@@ -122,7 +121,6 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordChannels.map((ch) => (
                                         <SelectItem key={ch.id} value={ch.id}>
                                             #{ch.name}
@@ -143,7 +141,6 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordChannels.map((ch) => (
                                         <SelectItem key={ch.id} value={ch.id}>
                                             #{ch.name}
@@ -164,7 +161,6 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordChannels.map((ch) => (
                                         <SelectItem key={ch.id} value={ch.id}>
                                             #{ch.name}
@@ -185,7 +181,6 @@ export function ChannelsSettings({ channels, onChange, guildId }: ChannelsSettin
                                     <SelectValue placeholder="Aucun" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun</SelectItem>
                                     {discordChannels.map((ch) => (
                                         <SelectItem key={ch.id} value={ch.id}>
                                             #{ch.name}
