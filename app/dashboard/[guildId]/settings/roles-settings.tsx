@@ -20,7 +20,7 @@ interface RolesSettingsProps {
     guildId: string
 }
 
-interface Discord Role {
+interface DiscordRole {
     id: string
     name: string
 }
