@@ -25,14 +25,15 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-const navigation = [
+// Function to generate navigation with dynamic guildId
+const getNavigation = (guildId?: string) => [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { name: "Modération", href: "/dashboard/moderation", icon: Shield }, // ← masquée si pas admin
   { name: "Musique", href: "/dashboard/music", icon: Music },
   { name: "Leaderboards", href: "/dashboard/leaderboards", icon: Trophy },
   { name: "Annonces", href: "/dashboard/announcements", icon: Megaphone },
   { name: "Valorant", href: "/dashboard/valorant", icon: Target },
-  { name: "Paramètres", href: "/dashboard/settings", icon: Settings },
+  { name: "Paramètres", href: guildId ? `/dashboard/${guildId}/settings` : "/dashboard/settings", icon: Settings },
 ]
 
 // Pages à restreindre aux admins/owners (ajoute ici si tu veux en masquer d’autres)
@@ -116,6 +117,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [selectedGuild])
 
   const filteredNav = useMemo(() => {
+    const navigation = getNavigation(selectedGuild?.id)
     // tant que l’accès n’est pas résolu, on évite le flash: on masque les pages restreintes
     if (accessLoading) {
       return navigation.filter((item) => !RESTRICTED_NAMES.has(item.name))
@@ -130,7 +132,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
     // admin/owner → tout afficher
     return navigation
-  }, [accessLoading, isMember, isAdmin])
+  }, [accessLoading, isMember, isAdmin, selectedGuild?.id])
 
   const handleGuildChange = (guild: any) => {
     setSelectedGuild(guild)
@@ -198,10 +200,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   {accessLoading
                     ? "Vérification…"
                     : isMember
-                    ? isAdmin
-                      ? "Admin du serveur"
-                      : "Membre du serveur"
-                    : "Hors serveur"}
+                      ? isAdmin
+                        ? "Admin du serveur"
+                        : "Membre du serveur"
+                      : "Hors serveur"}
                 </span>
               </div>
               {/* Option: tu peux afficher une vraie latence du bot si tu la stockes en Supabase */}
