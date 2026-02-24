@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import {
     Wallet, ShoppingBag, Package, Ticket,
-    Loader2, Trophy, Clock, TrendingUp, AlertTriangle, Sparkles
+    Loader2, Trophy, Clock, TrendingUp, AlertTriangle, Sparkles, RotateCcw
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { createClient } from "@supabase/supabase-js"
 import { getDiscordProfiles } from "@/lib/discord-profile-cache"
 
@@ -29,22 +30,22 @@ const SHOP_CATALOG: Record<string, {
     bouclier_combat: { name: "Bouclier de Combat", emoji: "🔰", description: "Bloque tous les défis pendant 24h", category: "combat", price: 2000, durationHours: 24 },
     potion_force: { name: "Potion de Force", emoji: "💪", description: "+10% de dégâts pendant 24h", category: "combat", price: 1500, durationHours: 24 },
     ticket_revanche: { name: "Ticket de Revanche", emoji: "🔄", description: "Rejoue un combat perdu (usage unique)", category: "combat", price: 1000 },
-    boost_salaire: { name: "Boost de Salaire", emoji: "📈", description: "+500 écus/jour pendant 7 jours", category: "economy", price: 10000, durationHours: 168 },
-    boost_quete: { name: "Boost de Quêtes", emoji: "⚡", description: "Progression de quêtes x2 pendant 7 jours", category: "economy", price: 5000, durationHours: 168 },
-    assurance_pari: { name: "Assurance Pari", emoji: "🔒", description: "Récupère 50% de ta mise si tu perds", category: "economy", price: 3000 },
-    lootbox_bronze: { name: "Caisse Bronze", emoji: "🟫", description: "Récompenses aléatoires (petites)", category: "lootbox", price: 2000 },
-    lootbox_argent: { name: "Caisse Argent", emoji: "⬜", description: "Récompenses aléatoires (moyennes)", category: "lootbox", price: 5000 },
-    lootbox_or: { name: "Caisse Or", emoji: "🟨", description: "Récompenses aléatoires (grosses)", category: "lootbox", price: 15000 },
-    lootbox_radiant: { name: "Caisse Radiant", emoji: "💎", description: "Récompenses aléatoires (ÉNORMES)", category: "lootbox", price: 50000 },
+    boost_salaire: { name: "Boost de Salaire", emoji: "📈", description: "+1 000 pq/jour pendant 7 jours (retour: 7k)", category: "economy", price: 5000, durationHours: 168 },
+    boost_quete: { name: "Boost de Quêtes", emoji: "⚡", description: "Progression de quêtes x2 pendant 7 jours", category: "economy", price: 3000, durationHours: 168 },
+    assurance_pari: { name: "Assurance Pari", emoji: "🔒", description: "Récupère 50% de ta mise si tu perds", category: "economy", price: 1500 },
+    lootbox_bronze: { name: "Caisse Bronze", emoji: "🟫", description: "Récompenses aléatoires (500-3 000 pq)", category: "lootbox", price: 1500 },
+    lootbox_argent: { name: "Caisse Argent", emoji: "⬜", description: "Récompenses aléatoires (2 000-8 000 pq)", category: "lootbox", price: 4000 },
+    lootbox_or: { name: "Caisse Or", emoji: "🟨", description: "Récompenses aléatoires (5 000-25 000 pq)", category: "lootbox", price: 10000 },
+    lootbox_radiant: { name: "Caisse Radiant", emoji: "💎", description: "Récompenses aléatoires (15 000-100 000 pq)", category: "lootbox", price: 35000 },
     ticket_loterie: { name: "Ticket de Loterie", emoji: "🎟️", description: "Participe au tirage hebdomadaire (dim. 21h)", category: "lottery", price: 1000 },
-    compagnon_spike: { name: "Petit Spike", emoji: "💣", description: "Compagnon — +500 écus/jour passif", category: "companion", price: 5000, bonus: { dailyEcus: 500 } },
+    compagnon_spike: { name: "Petit Spike", emoji: "💣", description: "Compagnon — +500 pq/jour passif", category: "companion", price: 5000, bonus: { dailyEcus: 500 } },
     compagnon_phoenix: { name: "Phoenix Jr", emoji: "🔥", description: "Compagnon — +15% dégâts en combat TCG", category: "companion", price: 8000, bonus: { combatDmg: 15 } },
     compagnon_sage: { name: "Sage Bot", emoji: "💚", description: "Compagnon — +2 boosters gratuits par jour", category: "companion", price: 10000, bonus: { freeBooster: 2 } },
-    compagnon_omen: { name: "Omen Shadow", emoji: "👤", description: "Compagnon — 800 écus/jour + 15% chance loot", category: "companion", price: 15000, bonus: { dailyEcus: 800, lootLuck: 15 } },
-    compagnon_radiant: { name: "Renard Radiant", emoji: "🦊", description: "Compagnon LÉGENDAIRE — 2 000 écus/jour + 25% loot", category: "companion", price: 30000, bonus: { dailyEcus: 2000, lootLuck: 25 } },
-    pass_vip: { name: "Pass VIP", emoji: "⭐", description: "Rôle VIP + 1 000 écus/jour (30j)", category: "pass", price: 15000, durationHours: 720, roleKey: "vip", roleName: "⭐ VIP" },
-    pass_premium: { name: "Pass Premium", emoji: "💎", description: "Rôle Premium + 2 500 écus/jour + boosts (30j)", category: "pass", price: 35000, durationHours: 720, roleKey: "premium", roleName: "💎 Premium" },
-    pass_radiant: { name: "Pass Radiant", emoji: "🌟", description: "Rôle Radiant + 5 000 écus/jour + TOUS les bonus (30j)", category: "pass", price: 75000, durationHours: 720, roleKey: "radiant", roleName: "🌟 Radiant" },
+    compagnon_omen: { name: "Omen Shadow", emoji: "👤", description: "Compagnon — 800 pq/jour + 15% chance loot", category: "companion", price: 15000, bonus: { dailyEcus: 800, lootLuck: 15 } },
+    compagnon_radiant: { name: "Renard Radiant", emoji: "🦊", description: "Compagnon LÉGENDAIRE — 2 000 pq/jour + 25% loot", category: "companion", price: 30000, bonus: { dailyEcus: 2000, lootLuck: 25 } },
+    pass_vip: { name: "Pass VIP", emoji: "⭐", description: "Rôle VIP + 1 500 pq/jour (30j = 45k retour)", category: "pass", price: 12000, durationHours: 720, roleKey: "vip", roleName: "⭐ VIP" },
+    pass_premium: { name: "Pass Premium", emoji: "💎", description: "Rôle Premium + 3 000 pq/jour + boosts (30j = 90k)", category: "pass", price: 30000, durationHours: 720, roleKey: "premium", roleName: "💎 Premium" },
+    pass_radiant: { name: "Pass Radiant", emoji: "🌟", description: "Rôle Radiant + 6 000 pq/jour + TOUS les bonus (30j = 180k)", category: "pass", price: 60000, durationHours: 720, roleKey: "radiant", roleName: "🌟 Radiant" },
 }
 
 const CATEGORIES: Record<string, { name: string; emoji: string; description: string }> = {
@@ -93,6 +94,12 @@ export default function EconomyPage() {
 
     // Discord profiles
     const [profiles, setProfiles] = useState<Map<string, { username: string; avatar: string }>>(new Map())
+
+    // Buy
+    const [balance, setBalance] = useState(0)
+    const [buyLoading, setBuyLoading] = useState<string | null>(null)
+    const [buyMsg, setBuyMsg] = useState<{ text: string; ok: boolean } | null>(null)
+    const [myInventory, setMyInventory] = useState<any[]>([])
 
     const supa = useMemo(
         () => createClient(
@@ -210,6 +217,61 @@ export default function EconomyPage() {
         fetchAll()
     }, [supa])
 
+    // Fetch user balance
+    const fetchBalance = useCallback(async (gid: string) => {
+        try {
+            const res = await fetch(`/api/casino/balance?guildId=${gid}`)
+            if (res.ok) {
+                const data = await res.json()
+                setBalance(data.balance)
+            }
+        } catch { }
+    }, [])
+
+    // Fetch user inventory
+    const fetchMyInventory = useCallback(async (gid: string) => {
+        try {
+            const res = await fetch(`/api/casino/shop?guildId=${gid}`)
+            if (res.ok) {
+                const data = await res.json()
+                setMyInventory(data.inventory || [])
+            }
+        } catch { }
+    }, [])
+
+    useEffect(() => {
+        if (guildId) {
+            fetchBalance(guildId)
+            fetchMyInventory(guildId)
+        }
+    }, [guildId, fetchBalance, fetchMyInventory])
+
+    // Buy
+    async function buyItem(itemKey: string) {
+        if (!guildId || buyLoading) return
+        setBuyLoading(itemKey)
+        setBuyMsg(null)
+        try {
+            const res = await fetch("/api/casino/shop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ guildId, itemKey }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setBuyMsg({ text: data.error || "Erreur", ok: false })
+            } else {
+                setBuyMsg({ text: `✅ ${data.itemName} acheté !`, ok: true })
+                setBalance(data.newBalance)
+                fetchMyInventory(guildId)
+            }
+        } catch {
+            setBuyMsg({ text: "Erreur réseau", ok: false })
+        }
+        setBuyLoading(null)
+        setTimeout(() => setBuyMsg(null), 4000)
+    }
+
     function userName(userId: string) {
         return profiles.get(userId)?.username || `Utilisateur`
     }
@@ -247,10 +309,30 @@ export default function EconomyPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-foreground">Économie</h1>
-                <p className="text-muted-foreground">Portefeuilles, boutique, inventaire et loterie du serveur</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground">Économie</h1>
+                    <p className="text-muted-foreground">Portefeuilles, boutique, inventaire et loterie du serveur</p>
+                </div>
+                <Card className="border-border bg-gradient-to-r from-amber-500/10 to-yellow-500/10 sm:w-auto">
+                    <CardContent className="flex items-center gap-3 p-4">
+                        <Wallet className="h-5 w-5 text-amber-500" />
+                        <div>
+                            <p className="text-xs text-muted-foreground">Ton solde</p>
+                            <p className="text-xl font-bold text-amber-500">{fmtEcus(balance)} pq</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="ml-2 h-8 w-8" onClick={() => guildId && fetchBalance(guildId)}>
+                            <RotateCcw className="h-4 w-4" />
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
+
+            {buyMsg && (
+                <div className={`rounded-lg p-3 text-sm font-medium ${buyMsg.ok ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-red-500/10 text-red-400 border border-red-500/30"}`}>
+                    {buyMsg.text}
+                </div>
+            )}
 
             <Tabs defaultValue="wallet" className="w-full">
                 <TabsList className="grid w-full grid-cols-4">
@@ -326,9 +408,9 @@ export default function EconomyPage() {
                                         {topWallets.slice(0, 10).map((w, i) => (
                                             <div key={w.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
                                                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                        : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                            : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                                : "bg-primary/10 text-primary"
+                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                            : "bg-primary/10 text-primary"
                                                     }`}>
                                                     #{i + 1}
                                                 </div>
@@ -401,8 +483,8 @@ export default function EconomyPage() {
                                 key={key}
                                 onClick={() => setSelectedCategory(key)}
                                 className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${selectedCategory === key
-                                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     }`}
                             >
                                 <span>{cat.emoji}</span>
@@ -423,7 +505,7 @@ export default function EconomyPage() {
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold text-foreground">{item.name}</h3>
                                             <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
-                                            <div className="flex items-center gap-2 mt-3">
+                                            <div className="flex items-center gap-2 mt-3 flex-wrap">
                                                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
                                                     {fmtEcus(item.price)} pq
                                                 </Badge>
@@ -434,6 +516,15 @@ export default function EconomyPage() {
                                                     </Badge>
                                                 )}
                                             </div>
+                                            <Button
+                                                size="sm"
+                                                className="mt-3 gap-1 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
+                                                disabled={buyLoading === key || balance < item.price}
+                                                onClick={() => buyItem(key)}
+                                            >
+                                                {buyLoading === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShoppingBag className="h-3 w-3" />}
+                                                Acheter
+                                            </Button>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -547,9 +638,9 @@ export default function EconomyPage() {
                                         {topCollectors.map((c, i) => (
                                             <div key={c.userId} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
                                                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                        : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                            : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                                : "bg-primary/10 text-primary"
+                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                            : "bg-primary/10 text-primary"
                                                     }`}>
                                                     #{i + 1}
                                                 </div>
@@ -651,9 +742,9 @@ export default function EconomyPage() {
                                         {lotteryData.slice(0, 10).map((entry, i) => (
                                             <div key={entry.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
                                                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                        : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                            : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                                : "bg-primary/10 text-primary"
+                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                            : "bg-primary/10 text-primary"
                                                     }`}>
                                                     #{i + 1}
                                                 </div>

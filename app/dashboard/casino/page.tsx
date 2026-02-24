@@ -154,6 +154,12 @@ export default function CasinoPage() {
     const [resolvedBets, setResolvedBets] = useState<any[]>([])
     const [profiles, setProfiles] = useState<Map<string, { username: string; avatar: string }>>(new Map())
 
+    // Slots
+    const [slotsMise, setSlotsMise] = useState(100)
+    const [slotsSpinning, setSlotsSpinning] = useState(false)
+    const [slotsResult, setSlotsResult] = useState<any>(null)
+    const [slotsReels, setSlotsReels] = useState(["🍒", "🍋", "🍊"])
+
     const supa = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -285,6 +291,44 @@ export default function CasinoPage() {
         if (data.newBalance !== undefined) setBalance(data.newBalance)
     }
 
+    // ── Slots spin ──
+    async function spinSlots() {
+        if (!guildId || slotsSpinning) return
+        setSlotsSpinning(true)
+        setSlotsResult(null)
+
+        const res = await fetch("/api/casino/slots", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guildId, mise: slotsMise }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+            setSlotsSpinning(false)
+            setSlotsResult({ error: data.error })
+            return
+        }
+
+        // Animate reels
+        const symbols = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"]
+        let tick = 0
+        const interval = setInterval(() => {
+            tick++
+            setSlotsReels([
+                tick < 8 ? symbols[Math.floor(Math.random() * symbols.length)] : data.reels[0].emoji,
+                tick < 14 ? symbols[Math.floor(Math.random() * symbols.length)] : data.reels[1].emoji,
+                tick < 20 ? symbols[Math.floor(Math.random() * symbols.length)] : data.reels[2].emoji,
+            ])
+            if (tick >= 20) {
+                clearInterval(interval)
+                setSlotsResult(data)
+                setBalance(data.newBalance)
+                setSlotsSpinning(false)
+            }
+        }, 100)
+    }
+
     function userName(userId: string) { return profiles.get(userId)?.username || "Utilisateur" }
     function userAvatar(userId: string) { return profiles.get(userId)?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png" }
 
@@ -320,7 +364,7 @@ export default function CasinoPage() {
             </div>
 
             <Tabs defaultValue="roulette" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="roulette" className="gap-2">
                         <span className="text-lg">🎰</span>
                         <span className="hidden sm:inline">Roulette</span>
@@ -328,6 +372,10 @@ export default function CasinoPage() {
                     <TabsTrigger value="blackjack" className="gap-2">
                         <span className="text-lg">🃏</span>
                         <span className="hidden sm:inline">Blackjack</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="slots" className="gap-2">
+                        <span className="text-lg">🍒</span>
+                        <span className="hidden sm:inline">Machine à sous</span>
                     </TabsTrigger>
                     <TabsTrigger value="bets" className="gap-2">
                         <Dices className="h-4 w-4" />
@@ -583,10 +631,10 @@ export default function CasinoPage() {
                                         <div className="flex-1 h-px bg-border" />
                                         {isGameOver && (
                                             <div className={`px-6 py-2 rounded-full font-bold text-sm ${bjState.result === "win" || bjState.result === "blackjack" || bjState.result === "dealer_bust"
-                                                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                                    : bjState.result === "push"
-                                                        ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                                                        : "bg-red-500/10 text-red-400 border border-red-500/30"
+                                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                                : bjState.result === "push"
+                                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                                                    : "bg-red-500/10 text-red-400 border border-red-500/30"
                                                 }`}>
                                                 {bjState.result === "blackjack" && "🎰 BLACKJACK !"}
                                                 {bjState.result === "win" && "✅ Tu gagnes !"}
@@ -696,6 +744,107 @@ export default function CasinoPage() {
                                     </div>
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* ═══════════════ MACHINE À SOUS ═══════════════ */}
+                <TabsContent value="slots" className="mt-6 space-y-6">
+                    <Card className="border-border bg-gradient-to-br from-card via-card to-purple-500/5">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl">🍒 Machine à Sous</CardTitle>
+                            <CardDescription>Aligne 3 symboles identiques pour gagner !</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-8">
+                            {/* Slot machine display */}
+                            <div className="flex justify-center">
+                                <div className="rounded-3xl bg-gradient-to-br from-zinc-800 to-zinc-900 border-4 border-amber-500/30 p-8 shadow-2xl shadow-amber-500/10">
+                                    <div className="flex gap-4">
+                                        {slotsReels.map((emoji, i) => (
+                                            <div
+                                                key={i}
+                                                className={`w-24 h-24 rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 border-2 border-zinc-600 flex items-center justify-center text-5xl transition-all duration-200 ${slotsSpinning ? "animate-bounce" : ""
+                                                    } ${slotsResult?.won && slotsResult?.type === "triple" ? "ring-4 ring-amber-400 shadow-lg shadow-amber-400/30" : ""}`}
+                                                style={slotsSpinning ? { animationDelay: `${i * 100}ms` } : {}}
+                                            >
+                                                {emoji}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payout table */}
+                            <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                                {[
+                                    { emoji: "🍒", name: "Cerise", mult: "×3" },
+                                    { emoji: "🍋", name: "Citron", mult: "×5" },
+                                    { emoji: "🍊", name: "Orange", mult: "×8" },
+                                    { emoji: "🍇", name: "Raisin", mult: "×12" },
+                                    { emoji: "⭐", name: "Étoile", mult: "×25" },
+                                    { emoji: "💎", name: "Diamant", mult: "×100" },
+                                    { emoji: "7️⃣", name: "JACKPOT", mult: "×500" },
+                                ].map(s => (
+                                    <div key={s.name} className="rounded-xl bg-muted/30 p-2">
+                                        <span className="text-xl">{s.emoji}</span>
+                                        <p className="text-xs text-muted-foreground mt-1">{s.mult}</p>
+                                    </div>
+                                ))}
+                                <div className="rounded-xl bg-muted/30 p-2">
+                                    <span className="text-sm">2x</span>
+                                    <p className="text-xs text-muted-foreground mt-1">÷1/4</p>
+                                </div>
+                            </div>
+
+                            {/* Result */}
+                            {slotsResult && !slotsResult.error && (
+                                <div className={`rounded-2xl p-5 text-center ${slotsResult.won ? "bg-emerald-500/10 border border-emerald-500/30" : "bg-red-500/10 border border-red-500/30"} ${slotsResult.isJackpot ? "ring-2 ring-amber-400 animate-pulse" : ""}`}>
+                                    {slotsResult.isJackpot && <p className="text-3xl font-black text-amber-400 mb-2">🎰 JACKPOT !!! 🎰</p>}
+                                    <p className={`text-xl font-bold ${slotsResult.won ? "text-emerald-400" : "text-red-400"}`}>
+                                        {slotsResult.won
+                                            ? `+${fmtEcus(slotsResult.winnings)} pq (×${slotsResult.multiplier}) 🎉`
+                                            : `-${fmtEcus(slotsMise)} pq`}
+                                    </p>
+                                    {slotsResult.type === "double" && <p className="text-sm text-muted-foreground mt-1">2 symboles identiques !</p>}
+                                    {slotsResult.type === "triple" && <p className="text-sm text-muted-foreground mt-1">3 symboles identiques !</p>}
+                                </div>
+                            )}
+                            {slotsResult?.error && (
+                                <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-4 text-center text-red-400">
+                                    ❌ {slotsResult.error}
+                                </div>
+                            )}
+
+                            {/* Controls */}
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number" min={1} max={50000}
+                                        value={slotsMise}
+                                        onChange={e => setSlotsMise(Math.max(1, parseInt(e.target.value) || 0))}
+                                        className="w-32 text-center"
+                                    />
+                                    <span className="text-muted-foreground">pq</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    {[100, 500, 1000, 5000].map(v => (
+                                        <Button key={v} variant="outline" size="sm" className="text-xs" onClick={() => setSlotsMise(v)}>
+                                            {v >= 1000 ? `${v / 1000}k` : v}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <Button
+                                    className="h-14 px-10 text-lg font-bold gap-2 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 shadow-lg shadow-purple-500/20 w-full max-w-sm"
+                                    disabled={slotsSpinning || slotsMise <= 0}
+                                    onClick={spinSlots}
+                                >
+                                    {slotsSpinning ? (
+                                        <><Loader2 className="h-5 w-5 animate-spin" /> Spinning...</>
+                                    ) : (
+                                        <>🍒 Tirer le levier — {fmtEcus(slotsMise)} pq</>
+                                    )}
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

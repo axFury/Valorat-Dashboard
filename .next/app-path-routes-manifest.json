@@ -9,6 +9,8 @@
   "/api/casino/balance/route": "/api/casino/balance",
   "/api/casino/blackjack/route": "/api/casino/blackjack",
   "/api/casino/roulette/route": "/api/casino/roulette",
+  "/api/casino/shop/route": "/api/casino/shop",
+  "/api/casino/slots/route": "/api/casino/slots",
   "/api/cmd/route": "/api/cmd",
   "/api/guilds/[guildId]/channels/route": "/api/guilds/[guildId]/channels",
   "/api/guilds/[guildId]/members/[userId]/route": "/api/guilds/[guildId]/members/[userId]",
