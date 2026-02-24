@@ -1,0 +1,3 @@
+{
+  "/api/guilds/[guildId]/channels/route": "app/api/guilds/[guildId]/channels/route.js"
+}
