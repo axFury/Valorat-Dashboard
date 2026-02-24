@@ -14,6 +14,8 @@ import {
   ImageIcon,
   Megaphone,
   Target,
+  Coins,
+  Dices,
   ChevronDown,
   User,
   Menu,
@@ -27,6 +29,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 // Function to generate navigation with dynamic guildId
 const getNavigation = (guildId?: string) => [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Économie", href: "/dashboard/economy", icon: Coins },
+  { name: "Casino", href: "/dashboard/casino", icon: Dices },
   { name: "Modération", href: "/dashboard/moderation", icon: Shield }, // ← masquée si pas admin
   { name: "Musique", href: "/dashboard/music", icon: Music },
   { name: "Leaderboards", href: "/dashboard/leaderboards", icon: Trophy },
