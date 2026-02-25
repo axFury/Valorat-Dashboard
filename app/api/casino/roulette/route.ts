@@ -44,13 +44,22 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
     const body = await req.json()
-    const { guildId, bet, mise } = body
+    const { guildId, bets } = body
 
-    if (!guildId || !bet || !mise || mise <= 0) {
+    if (!guildId || !bets || !Array.isArray(bets) || bets.length === 0) {
         return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 })
     }
-    if (mise > 50000) {
-        return NextResponse.json({ error: "Mise maximum: 50 000 pq" }, { status: 400 })
+
+    let totalMise = 0;
+    for (const b of bets) {
+        if (!b.bet || !b.mise || b.mise <= 0) {
+            return NextResponse.json({ error: "Une mise est invalide" }, { status: 400 })
+        }
+        totalMise += b.mise;
+    }
+
+    if (totalMise > 50000) {
+        return NextResponse.json({ error: "Mise totale maximum: 50 000 pq" }, { status: 400 })
     }
 
     // Get balance
@@ -62,14 +71,22 @@ export async function POST(req: NextRequest) {
         .single()
 
     if (wErr || !wallet) return NextResponse.json({ error: "Portefeuille introuvable" }, { status: 404 })
-    if (wallet.balance < mise) return NextResponse.json({ error: "Solde insuffisant" }, { status: 400 })
+    if (wallet.balance < totalMise) return NextResponse.json({ error: "Solde insuffisant" }, { status: 400 })
 
     // Spin
     const number = Math.floor(Math.random() * 37) // 0-36
-    const multiplier = resolveBet(bet, number)
-    const won = multiplier > 0
-    const winnings = won ? mise * multiplier : 0
-    const netChange = won ? winnings - mise : -mise
+
+    let totalWinnings = 0;
+    const betResults = bets.map(b => {
+        const multiplier = resolveBet(b.bet, number);
+        const won = multiplier > 0;
+        const winnings = won ? b.mise * multiplier : 0;
+        totalWinnings += winnings;
+        return { bet: b.bet, mise: b.mise, multiplier, won, winnings };
+    });
+
+    const netChange = totalWinnings - totalMise
+    const won = totalWinnings > 0
     const newBalance = wallet.balance + netChange
 
     // Update balance
@@ -86,19 +103,27 @@ export async function POST(req: NextRequest) {
             .upsert({
                 guild_id: guildId,
                 user_id: user.id,
-                total_won: won ? winnings : 0,
-                total_lost: won ? 0 : mise,
+                total_won: won ? totalWinnings : 0,
+                total_lost: netChange < 0 ? Math.abs(netChange) : 0,
                 games_played: 1,
             }, { onConflict: "guild_id,user_id" })
+
+        // Quest Progress logic over queue
+        await getSupa().from("command_queue").insert([{
+            guild_id: guildId,
+            action: "ADD_QUEST_PROGRESS",
+            payload: { userId: user.id, questId: "ROULETTE", amount: 1 }
+        }])
     } catch { /* table may not exist */ }
 
     return NextResponse.json({
         number,
         color: number === 0 ? "green" : RED.has(number) ? "red" : "black",
-        multiplier,
+        results: betResults,
         won,
-        winnings,
+        winnings: totalWinnings,
         netChange,
         newBalance,
+        totalMise
     })
 }

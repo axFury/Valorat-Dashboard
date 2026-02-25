@@ -8,6 +8,7 @@
   "/api/bot/[...path]/route": "/api/bot/[...path]",
   "/api/casino/balance/route": "/api/casino/balance",
   "/api/casino/blackjack/route": "/api/casino/blackjack",
+  "/api/casino/crash/route": "/api/casino/crash",
   "/api/casino/roulette/route": "/api/casino/roulette",
   "/api/casino/shop/route": "/api/casino/shop",
   "/api/casino/slots/route": "/api/casino/slots",

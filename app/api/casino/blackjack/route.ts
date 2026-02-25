@@ -15,7 +15,6 @@ type Card = { suit: string; rank: string }
 function newDeck(): Card[] {
     const deck: Card[] = []
     for (const s of SUITS) for (const r of RANKS) deck.push({ suit: s, rank: r })
-    // Shuffle (Fisher-Yates)
     for (let i = deck.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [deck[i], deck[j]] = [deck[j], deck[i]]
@@ -40,10 +39,14 @@ function isBlackjack(hand: Card[]) {
     return hand.length === 2 && handValue(hand) === 21
 }
 
-// In-memory game state (simple approach — works for single-server deployments)
+function canSplit(hand: Card[]) {
+    return hand.length === 2 && cardValue(hand[0].rank) === cardValue(hand[1].rank)
+}
+
 const games = new Map<string, {
-    deck: Card[]; player: Card[]; dealer: Card[]; bet: number;
-    guildId: string; userId: string; status: string; doubled: boolean;
+    deck: Card[]; hands: Card[][]; dealer: Card[]; bets: number[];
+    currentHand: number; guildId: string; userId: string;
+    status: string; doubled: boolean[]; results?: any[]; totalPayout?: number;
 }>()
 
 async function getDiscordUser(req: NextRequest) {
@@ -58,17 +61,20 @@ async function getDiscordUser(req: NextRequest) {
 
 function gameResponse(game: any, showDealer = false) {
     return {
-        player: game.player,
-        playerValue: handValue(game.player),
+        hands: game.hands,
+        currentHand: game.currentHand,
+        values: game.hands.map((h: Card[]) => handValue(h)),
+        canSplit: canSplit(game.hands[game.currentHand]) && game.hands.length < 3,
         dealer: showDealer ? game.dealer : [game.dealer[0], { suit: "?", rank: "?" }],
         dealerValue: showDealer ? handValue(game.dealer) : cardValue(game.dealer[0].rank),
-        bet: game.bet,
+        bets: game.bets,
         status: game.status,
         doubled: game.doubled,
+        results: game.results,
+        totalPayout: game.totalPayout,
     }
 }
 
-// POST /api/casino/blackjack
 export async function POST(req: NextRequest) {
     const user = await getDiscordUser(req)
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
@@ -79,12 +85,10 @@ export async function POST(req: NextRequest) {
 
     if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 })
 
-    // ── START NEW GAME ──
     if (action === "start") {
         if (!mise || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
         if (mise > 50000) return NextResponse.json({ error: "Mise max: 50 000 pq" }, { status: 400 })
 
-        // Check if game already exists
         if (games.has(gameKey)) {
             return NextResponse.json({ error: "Tu as déjà une partie en cours !" }, { status: 400 })
         }
@@ -100,7 +104,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Solde insuffisant" }, { status: 400 })
         }
 
-        // Deduct bet
         await getSupa()
             .from("user_wallets")
             .update({ balance: wallet.balance - mise })
@@ -111,23 +114,27 @@ export async function POST(req: NextRequest) {
         const player = [deck.pop()!, deck.pop()!]
         const dealer = [deck.pop()!, deck.pop()!]
 
-        const game = { deck, player, dealer, bet: mise, guildId, userId: user.id, status: "playing", doubled: false }
+        const game: typeof games extends Map<any, infer I> ? I : never = {
+            deck, hands: [player], dealer, bets: [mise],
+            currentHand: 0, guildId, userId: user.id, status: "playing", doubled: [false], results: undefined, totalPayout: undefined
+        }
 
-        // Check natural blackjack
         if (isBlackjack(player)) {
+            let totalPayout = 0;
             if (isBlackjack(dealer)) {
-                game.status = "push"
-                // Refund
-                await getSupa().from("user_wallets")
-                    .update({ balance: wallet.balance })
-                    .eq("guild_id", guildId).eq("user_id", user.id)
+                game.status = "done"
+                game.results = ["push"]
+                totalPayout = mise
             } else {
-                game.status = "blackjack"
-                const winnings = Math.floor(mise * 2.5)
-                await getSupa().from("user_wallets")
-                    .update({ balance: wallet.balance - mise + winnings })
-                    .eq("guild_id", guildId).eq("user_id", user.id)
+                game.status = "done"
+                game.results = ["blackjack"]
+                totalPayout = Math.floor(mise * 2.5)
             }
+            game.totalPayout = totalPayout
+
+            await getSupa().from("user_wallets")
+                .update({ balance: wallet.balance - mise + totalPayout })
+                .eq("guild_id", guildId).eq("user_id", user.id)
 
             const { data: finalWallet } = await getSupa()
                 .from("user_wallets").select("balance")
@@ -135,133 +142,157 @@ export async function POST(req: NextRequest) {
 
             return NextResponse.json({
                 ...gameResponse(game, true),
-                result: game.status,
                 newBalance: finalWallet?.balance,
             })
         }
 
-        games.set(gameKey, game)
-        // Auto-cleanup after 5 min
+        games.set(gameKey, game as any)
         setTimeout(() => { games.delete(gameKey) }, 300_000)
 
         return NextResponse.json({
             ...gameResponse(game),
-            canDouble: wallet.balance >= mise * 2,
+            canAfford: wallet.balance >= mise * 2 - mise, // We already deducted 1x
+            walletBalance: wallet.balance - mise
         })
     }
 
-    // ── GAME ACTIONS (hit, stand, double) ──
     const game = games.get(gameKey)
     if (!game) return NextResponse.json({ error: "Aucune partie en cours" }, { status: 404 })
 
+    const { data: wallet } = await getSupa()
+        .from("user_wallets").select("balance")
+        .eq("guild_id", guildId).eq("user_id", user.id).single()
+
+    async function settleGame() {
+        while (handValue(game!.dealer) < 17) {
+            game!.dealer.push(game!.deck.pop()!)
+        }
+
+        const dv = handValue(game!.dealer)
+        let totalPayout = 0
+        game!.results = []
+
+        for (let i = 0; i < game!.hands.length; i++) {
+            const pv = handValue(game!.hands[i])
+            const bet = game!.bets[i]
+            let res = ""
+            let payout = 0
+
+            if (pv > 21) { res = "bust"; payout = 0 }
+            else if (dv > 21) { res = "dealer_bust"; payout = bet * 2 }
+            else if (pv > dv) { res = "win"; payout = bet * 2 }
+            else if (pv === dv) { res = "push"; payout = bet }
+            else { res = "lose"; payout = 0 }
+
+            game!.results.push(res)
+            totalPayout += payout
+        }
+
+        game!.status = "done"
+        game!.totalPayout = totalPayout
+
+        if (totalPayout > 0) {
+            await getSupa().from("user_wallets")
+                .update({ balance: (wallet?.balance || 0) + totalPayout })
+                .eq("guild_id", guildId).eq("user_id", user.id)
+        }
+
+        try {
+            const totalBet = game!.bets.reduce((a, b) => a + b, 0)
+            const won = totalPayout > totalBet ? totalPayout - totalBet : 0
+            const lost = totalPayout < totalBet ? totalBet - totalPayout : 0
+            await getSupa().from("casino_stats").upsert({
+                guild_id: guildId, user_id: user.id,
+                total_won: won, total_lost: lost, games_played: 1,
+            }, { onConflict: "guild_id,user_id" })
+
+            // Quest Progress logic over queue
+            await getSupa().from("command_queue").insert([{
+                guild_id: guildId,
+                action: "ADD_QUEST_PROGRESS",
+                payload: { userId: user.id, questId: "BLACKJACK", amount: 1 }
+            }])
+        } catch { }
+
+        games.delete(gameKey)
+    }
+
     if (action === "hit") {
-        game.player.push(game.deck.pop()!)
-        if (handValue(game.player) > 21) {
-            game.status = "bust"
-            games.delete(gameKey)
-
-            // Track stats
-            try {
-                await getSupa().from("casino_stats").upsert({
-                    guild_id: guildId, user_id: user.id,
-                    total_won: 0, total_lost: game.bet, games_played: 1,
-                }, { onConflict: "guild_id,user_id" })
-            } catch { }
-
-            const { data: w } = await getSupa().from("user_wallets").select("balance")
-                .eq("guild_id", guildId).eq("user_id", user.id).single()
-
-            return NextResponse.json({ ...gameResponse(game, true), result: "bust", newBalance: w?.balance })
+        game.hands[game.currentHand].push(game.deck.pop()!)
+        if (handValue(game.hands[game.currentHand]) > 21) {
+            game.currentHand++
+            if (game.currentHand >= game.hands.length) {
+                await settleGame()
+                const { data: w } = await getSupa().from("user_wallets").select("balance")
+                    .eq("guild_id", guildId).eq("user_id", user.id).single()
+                return NextResponse.json({ ...gameResponse(game, true), newBalance: w?.balance })
+            }
         }
         return NextResponse.json(gameResponse(game))
     }
 
     if (action === "double") {
-        const { data: wallet } = await getSupa()
-            .from("user_wallets").select("balance")
-            .eq("guild_id", guildId).eq("user_id", user.id).single()
-
-        if (!wallet || wallet.balance < game.bet) {
+        const bet = game.bets[game.currentHand]
+        if (!wallet || wallet.balance < bet) {
             return NextResponse.json({ error: "Solde insuffisant pour doubler" }, { status: 400 })
         }
 
-        // Deduct extra bet
         await getSupa().from("user_wallets")
-            .update({ balance: wallet.balance - game.bet })
+            .update({ balance: wallet.balance - bet })
             .eq("guild_id", guildId).eq("user_id", user.id)
 
-        game.bet *= 2
-        game.doubled = true
-        game.player.push(game.deck.pop()!)
+        game.bets[game.currentHand] *= 2
+        game.doubled[game.currentHand] = true
+        game.hands[game.currentHand].push(game.deck.pop()!)
 
-        if (handValue(game.player) > 21) {
-            game.status = "bust"
-            games.delete(gameKey)
-
-            try {
-                await getSupa().from("casino_stats").upsert({
-                    guild_id: guildId, user_id: user.id,
-                    total_won: 0, total_lost: game.bet, games_played: 1,
-                }, { onConflict: "guild_id,user_id" })
-            } catch { }
-
+        game.currentHand++
+        if (game.currentHand >= game.hands.length) {
+            await settleGame()
             const { data: w } = await getSupa().from("user_wallets").select("balance")
                 .eq("guild_id", guildId).eq("user_id", user.id).single()
-
-            return NextResponse.json({ ...gameResponse(game, true), result: "bust", newBalance: w?.balance })
+            return NextResponse.json({ ...gameResponse(game, true), newBalance: w?.balance })
         }
-        // Auto-stand after double
-        // Fall through to stand logic below
+        return NextResponse.json(gameResponse(game))
     }
 
-    if (action === "stand" || action === "double") {
-        // Dealer plays
-        while (handValue(game.dealer) < 17) {
-            game.dealer.push(game.deck.pop()!)
+    if (action === "split") {
+        if (!canSplit(game.hands[game.currentHand]) || game.hands.length >= 3) {
+            return NextResponse.json({ error: "Impossible de split cette main" }, { status: 400 })
+        }
+        const bet = game.bets[game.currentHand]
+        if (!wallet || wallet.balance < bet) {
+            return NextResponse.json({ error: "Solde insuffisant pour séparer" }, { status: 400 })
         }
 
-        const pv = handValue(game.player)
-        const dv = handValue(game.dealer)
+        await getSupa().from("user_wallets")
+            .update({ balance: wallet.balance - bet })
+            .eq("guild_id", guildId).eq("user_id", user.id)
 
-        let result: string
-        let payout = 0
+        const hand = game.hands[game.currentHand]
+        const card = hand.pop()!
+        game.hands.splice(game.currentHand + 1, 0, [card])
+        game.bets.splice(game.currentHand + 1, 0, bet)
+        game.doubled.splice(game.currentHand + 1, 0, false)
 
-        if (dv > 21) { result = "dealer_bust"; payout = game.bet * 2 }
-        else if (pv > dv) { result = "win"; payout = game.bet * 2 }
-        else if (pv === dv) { result = "push"; payout = game.bet }
-        else { result = "lose"; payout = 0 }
+        game.hands[game.currentHand].push(game.deck.pop()!)
+        game.hands[game.currentHand + 1].push(game.deck.pop()!)
 
-        game.status = result
+        return NextResponse.json(gameResponse(game))
+    }
 
-        if (payout > 0) {
-            const { data: w } = await getSupa().from("user_wallets").select("balance")
+    if (action === "stand") {
+        game.currentHand++
+        if (game.currentHand >= game.hands.length) {
+            await settleGame()
+            const { data: finalW } = await getSupa().from("user_wallets").select("balance")
                 .eq("guild_id", guildId).eq("user_id", user.id).single()
-            await getSupa().from("user_wallets")
-                .update({ balance: (w?.balance || 0) + payout })
-                .eq("guild_id", guildId).eq("user_id", user.id)
+
+            return NextResponse.json({
+                ...gameResponse(game, true),
+                newBalance: finalW?.balance,
+            })
         }
-
-        // Track stats
-        try {
-            const won = payout > game.bet ? payout - game.bet : 0
-            const lost = payout < game.bet ? game.bet - payout : 0
-            await getSupa().from("casino_stats").upsert({
-                guild_id: guildId, user_id: user.id,
-                total_won: won, total_lost: lost, games_played: 1,
-            }, { onConflict: "guild_id,user_id" })
-        } catch { }
-
-        games.delete(gameKey)
-
-        const { data: finalW } = await getSupa().from("user_wallets").select("balance")
-            .eq("guild_id", guildId).eq("user_id", user.id).single()
-
-        return NextResponse.json({
-            ...gameResponse(game, true),
-            result,
-            payout,
-            newBalance: finalW?.balance,
-        })
+        return NextResponse.json(gameResponse(game))
     }
 
     return NextResponse.json({ error: "Action invalide" }, { status: 400 })

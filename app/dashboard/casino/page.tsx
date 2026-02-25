@@ -137,12 +137,31 @@ export default function CasinoPage() {
     const [balance, setBalance] = useState(0)
 
     // Roulette
-    const [rouletteBet, setRouletteBet] = useState("rouge")
+    const [activeRouletteBets, setActiveRouletteBets] = useState<{ bet: string, label: string, mise: number }[]>([])
     const [rouletteMise, setRouletteMise] = useState(100)
     const [rouletteSpinning, setRouletteSpinning] = useState(false)
     const [rouletteResult, setRouletteResult] = useState<any>(null)
     const [wheelRotation, setWheelRotation] = useState(0)
-    const [rouletteNumberBet, setRouletteNumberBet] = useState<string>("")
+    const [rouletteNumberInput, setRouletteNumberInput] = useState<string>("")
+
+    function handleAddRouletteBet(betValue: string, label: string) {
+        if (rouletteMise <= 0) return;
+        setActiveRouletteBets(prev => {
+            const existing = prev.find(b => b.bet === betValue);
+            if (existing) {
+                return prev.map(b => b.bet === betValue ? { ...b, mise: b.mise + rouletteMise } : b);
+            }
+            return [...prev, { bet: betValue, label, mise: rouletteMise }];
+        });
+    }
+
+    function handleRemoveRouletteBet(betValue: string) {
+        setActiveRouletteBets(prev => prev.filter(b => b.bet !== betValue));
+    }
+
+    function handleClearRouletteBets() {
+        setActiveRouletteBets([]);
+    }
 
     // Blackjack
     const [bjState, setBjState] = useState<any>(null)
@@ -159,6 +178,14 @@ export default function CasinoPage() {
     const [slotsSpinning, setSlotsSpinning] = useState(false)
     const [slotsResult, setSlotsResult] = useState<any>(null)
     const [slotsReels, setSlotsReels] = useState(["🍒", "🍋", "🍊"])
+
+    // Crash
+    const [crashMise, setCrashMise] = useState(100)
+    const [crashTarget, setCrashTarget] = useState("2.00")
+    const [crashPlaying, setCrashPlaying] = useState(false)
+    const [crashResult, setCrashResult] = useState<any>(null)
+    const [crashCurrentMult, setCrashCurrentMult] = useState(1.00)
+    const crashAnimRef = useRef<number>(0)
 
     const supa = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -234,15 +261,14 @@ export default function CasinoPage() {
 
     // ── Roulette spin ──
     async function spinRoulette() {
-        if (!guildId || rouletteSpinning) return
-        const actualBet = rouletteNumberBet !== "" ? rouletteNumberBet : rouletteBet
+        if (!guildId || rouletteSpinning || activeRouletteBets.length === 0) return
         setRouletteSpinning(true)
         setRouletteResult(null)
 
         const res = await fetch("/api/casino/roulette", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ guildId, bet: actualBet, mise: rouletteMise }),
+            body: JSON.stringify({ guildId, bets: activeRouletteBets }),
         })
 
         const data = await res.json()
@@ -329,6 +355,72 @@ export default function CasinoPage() {
         }, 100)
     }
 
+    // ── Crash play ──
+    async function playCrash() {
+        if (!guildId || crashPlaying) return
+        const targetNum = parseFloat(crashTarget)
+        if (targetNum < 1.01 || targetNum > 1000) return
+
+        setCrashPlaying(true)
+        setCrashResult(null)
+        setCrashCurrentMult(1.00)
+        if (crashAnimRef.current) cancelAnimationFrame(crashAnimRef.current)
+
+        const res = await fetch("/api/casino/crash", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guildId, mise: crashMise, target: targetNum }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+            setCrashPlaying(false)
+            setCrashResult({ error: data.error })
+            return
+        }
+
+        // Animation de la courbe exponentielle (M = e^(k*t))
+        // Plus on va haut, plus ça va vite mais proportionnellement.
+        const START_TIME = performance.now()
+        // Temps théorique pour atteindre crashPoint: utilisons 1000ms * ln(crashPoint)
+        // Crash instantané à 1.00
+        if (data.crashPoint <= 1.00) {
+            setCrashCurrentMult(1.00)
+            setCrashResult(data)
+            setBalance(data.newBalance)
+            setCrashPlaying(false)
+            return
+        }
+
+        // Objectif visuel = animer jusqu'au crashPoint (même si on gagne avant, on voit la fusée exploser à crashPoint)
+        const K = 0.0006 // vitesse exponentielle (0.0006 * 1000ms = ln(1.82) / s)
+        const C = 1.05   // base
+
+        function step(now: number) {
+            const elapsed = now - START_TIME
+            // Formule: mult = 1.00 * e^(k * elapsed)
+            let m = 1.00 * Math.exp(K * elapsed)
+
+            if (data.won && m >= data.crashPoint) {
+                m = data.crashPoint
+            } else if (!data.won && m >= data.crashPoint) {
+                m = data.crashPoint
+            }
+
+            setCrashCurrentMult(m)
+
+            if (m < data.crashPoint) {
+                crashAnimRef.current = requestAnimationFrame(step)
+            } else {
+                setCrashCurrentMult(data.crashPoint)
+                setCrashResult(data)
+                setBalance(data.newBalance)
+                setCrashPlaying(false)
+            }
+        }
+        crashAnimRef.current = requestAnimationFrame(step)
+    }
+
     function userName(userId: string) { return profiles.get(userId)?.username || "Utilisateur" }
     function userAvatar(userId: string) { return profiles.get(userId)?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png" }
 
@@ -364,7 +456,7 @@ export default function CasinoPage() {
             </div>
 
             <Tabs defaultValue="roulette" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="roulette" className="gap-2">
                         <span className="text-lg">🎰</span>
                         <span className="hidden sm:inline">Roulette</span>
@@ -376,6 +468,10 @@ export default function CasinoPage() {
                     <TabsTrigger value="slots" className="gap-2">
                         <span className="text-lg">🍒</span>
                         <span className="hidden sm:inline">Machine à sous</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="crash" className="gap-2">
+                        <span className="text-lg">🚀</span>
+                        <span className="hidden sm:inline">Crash</span>
                     </TabsTrigger>
                     <TabsTrigger value="bets" className="gap-2">
                         <Dices className="h-4 w-4" />
@@ -468,8 +564,16 @@ export default function CasinoPage() {
                                                 {rouletteResult.color === "red" ? "🔴 Rouge" : rouletteResult.color === "black" ? "⚫ Noir" : "🟢 Vert"}
                                             </span>
                                         </div>
+                                        <div className="text-sm mb-2 text-muted-foreground break-words">
+                                            {rouletteResult.results.map((r: any, i: number) => (
+                                                <span key={i} className={r.won ? "text-emerald-400" : "text-red-400"}>
+                                                    {r.bet} ({fmtEcus(r.mise)}pq){r.won ? ` +${fmtEcus(r.winnings)}` : ""}
+                                                    {i < rouletteResult.results.length - 1 ? " | " : ""}
+                                                </span>
+                                            ))}
+                                        </div>
                                         <p className={`text-xl font-bold ${rouletteResult.won ? "text-emerald-400" : "text-red-400"}`}>
-                                            {rouletteResult.won ? `+${fmtEcus(rouletteResult.winnings)} pq 🎉` : `-${fmtEcus(rouletteMise)} pq`}
+                                            {rouletteResult.won ? `+${fmtEcus(rouletteResult.winnings)} pq 🎉` : `-${fmtEcus(rouletteResult.totalMise)} pq`}
                                         </p>
                                     </div>
                                 )}
@@ -514,17 +618,20 @@ export default function CasinoPage() {
                                         <div key={group.label} className="space-y-1.5">
                                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{group.label}</p>
                                             <div className="flex flex-wrap gap-1.5">
-                                                {group.bets.map(b => (
-                                                    <Button
-                                                        key={b.value}
-                                                        variant={rouletteBet === b.value && rouletteNumberBet === "" ? "default" : "outline"}
-                                                        size="sm"
-                                                        className="text-xs"
-                                                        onClick={() => { setRouletteBet(b.value); setRouletteNumberBet("") }}
-                                                    >
-                                                        {b.label} <span className="ml-1 opacity-60">{b.mult}</span>
-                                                    </Button>
-                                                ))}
+                                                {group.bets.map(b => {
+                                                    const isActive = activeRouletteBets.some(ab => ab.bet === b.value);
+                                                    return (
+                                                        <Button
+                                                            key={b.value}
+                                                            variant={isActive ? "default" : "outline"}
+                                                            size="sm"
+                                                            className="text-xs"
+                                                            onClick={() => handleAddRouletteBet(b.value, b.label)}
+                                                        >
+                                                            {b.label} <span className="ml-1 opacity-60">{b.mult}</span>
+                                                        </Button>
+                                                    )
+                                                })}
                                             </div>
                                         </div>
                                     ))}
@@ -536,30 +643,60 @@ export default function CasinoPage() {
                                             <Input
                                                 type="number" min={0} max={36}
                                                 placeholder="0-36"
-                                                value={rouletteNumberBet}
-                                                onChange={e => {
-                                                    setRouletteNumberBet(e.target.value)
-                                                    if (e.target.value !== "") setRouletteBet("")
-                                                }}
+                                                value={rouletteNumberInput}
+                                                onChange={e => setRouletteNumberInput(e.target.value)}
                                                 className="w-24"
                                             />
-                                            {rouletteNumberBet !== "" && (
-                                                <Badge className="bg-primary/10 text-primary">Numéro {rouletteNumberBet}</Badge>
-                                            )}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (rouletteNumberInput !== "" && parseInt(rouletteNumberInput) >= 0 && parseInt(rouletteNumberInput) <= 36) {
+                                                        handleAddRouletteBet(rouletteNumberInput, `Numéro ${rouletteNumberInput}`);
+                                                        setRouletteNumberInput("");
+                                                    }
+                                                }}
+                                            >Ajouter</Button>
                                         </div>
                                     </div>
                                 </div>
 
+                                {/* Active Bets Summary */}
+                                {activeRouletteBets.length > 0 && (
+                                    <div className="flex flex-col gap-2 p-3 rounded-lg bg-black/20 border border-white/5">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-sm font-semibold">Paris en cours</span>
+                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={handleClearRouletteBets}>Tout effacer</Button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {activeRouletteBets.map(b => (
+                                                <Badge key={b.bet} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 bg-white/5">
+                                                    <span>{b.label} <span className="text-amber-400 ml-1">{fmtEcus(b.mise)} pq</span></span>
+                                                    <div
+                                                        className="ml-1 cursor-pointer opacity-50 hover:opacity-100 p-0.5 rounded-full hover:bg-white/10"
+                                                        onClick={() => handleRemoveRouletteBet(b.bet)}
+                                                    >
+                                                        ✕
+                                                    </div>
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                        <div className="text-right text-sm text-muted-foreground mt-1">
+                                            Total: <span className="text-amber-400 font-bold">{fmtEcus(activeRouletteBets.reduce((acc, b) => acc + b.mise, 0))} pq</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Spin button */}
                                 <Button
                                     className="w-full h-14 text-lg font-bold gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20"
-                                    disabled={rouletteSpinning || rouletteMise <= 0}
+                                    disabled={rouletteSpinning || activeRouletteBets.length === 0}
                                     onClick={spinRoulette}
                                 >
                                     {rouletteSpinning ? (
                                         <><Loader2 className="h-5 w-5 animate-spin" /> La roue tourne...</>
                                     ) : (
-                                        <>🎰 Tourner la roue — {fmtEcus(rouletteMise)} pq</>
+                                        <>🎰 Tourner la roue — {fmtEcus(activeRouletteBets.reduce((acc, b) => acc + b.mise, 0))} pq</>
                                     )}
                                 </Button>
                             </CardContent>
@@ -576,8 +713,8 @@ export default function CasinoPage() {
                                 <div className="grid grid-cols-13 gap-0.5 min-w-[520px]" style={{ gridTemplateColumns: "repeat(13, 1fr)" }}>
                                     {/* 0 spanning first column */}
                                     <button
-                                        onClick={() => { setRouletteNumberBet("0"); setRouletteBet("") }}
-                                        className={`row-span-3 rounded-lg flex items-center justify-center text-sm font-bold text-white transition-all hover:scale-105 ${rouletteNumberBet === "0" ? "ring-2 ring-amber-400 scale-105" : ""} bg-emerald-600 h-full min-h-[80px]`}
+                                        onClick={() => handleAddRouletteBet("0", "Numéro 0")}
+                                        className={`row-span-3 rounded-lg flex items-center justify-center text-sm font-bold text-white transition-all hover:scale-105 ${activeRouletteBets.some(ab => ab.bet === "0") ? "ring-2 ring-amber-400 scale-105" : ""} bg-emerald-600 h-full min-h-[80px]`}
                                     >
                                         0
                                     </button>
@@ -590,8 +727,8 @@ export default function CasinoPage() {
                                         row.map(n => (
                                             <button
                                                 key={n}
-                                                onClick={() => { setRouletteNumberBet(String(n)); setRouletteBet("") }}
-                                                className={`h-[28px] rounded flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-110 ${rouletteNumberBet === String(n) ? "ring-2 ring-amber-400 scale-110" : ""} ${RED_SET.has(n) ? "bg-red-600 hover:bg-red-500" : "bg-zinc-800 hover:bg-zinc-700"}`}
+                                                onClick={() => handleAddRouletteBet(String(n), `Numéro ${n}`)}
+                                                className={`h-[28px] rounded flex items-center justify-center text-xs font-bold text-white transition-all hover:scale-110 ${activeRouletteBets.some(ab => ab.bet === String(n)) ? "ring-2 ring-amber-400 scale-110" : ""} ${RED_SET.has(n) ? "bg-red-600 hover:bg-red-500" : "bg-zinc-800 hover:bg-zinc-700"}`}
                                             >
                                                 {n}
                                             </button>
@@ -630,34 +767,54 @@ export default function CasinoPage() {
                                     <div className="flex items-center gap-4">
                                         <div className="flex-1 h-px bg-border" />
                                         {isGameOver && (
-                                            <div className={`px-6 py-2 rounded-full font-bold text-sm ${bjState.result === "win" || bjState.result === "blackjack" || bjState.result === "dealer_bust"
-                                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                                                : bjState.result === "push"
-                                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                                                    : "bg-red-500/10 text-red-400 border border-red-500/30"
-                                                }`}>
-                                                {bjState.result === "blackjack" && "🎰 BLACKJACK !"}
-                                                {bjState.result === "win" && "✅ Tu gagnes !"}
-                                                {bjState.result === "dealer_bust" && "💥 Croupier bust !"}
-                                                {bjState.result === "push" && "🤝 Égalité"}
-                                                {bjState.result === "bust" && "💀 Bust !"}
-                                                {bjState.result === "lose" && "❌ Perdu"}
-                                                {bjState.payout !== undefined && bjState.payout > 0 && ` +${fmtEcus(bjState.payout)} pq`}
+                                            <div className="flex flex-col gap-2">
+                                                {bjState.results.map((res: string, i: number) => (
+                                                    <div key={i} className={`px-6 py-2 rounded-full font-bold text-sm text-center ${res === "win" || res === "blackjack" || res === "dealer_bust"
+                                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                                                        : res === "push"
+                                                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                                                            : "bg-red-500/10 text-red-400 border border-red-500/30"
+                                                        }`}>
+                                                        {bjState.hands.length > 1 && <span className="opacity-70 mr-2">Main {i + 1}</span>}
+                                                        {res === "blackjack" && "🎰 BLACKJACK !"}
+                                                        {res === "win" && "✅ Tu gagnes !"}
+                                                        {res === "dealer_bust" && "💥 Croupier bust !"}
+                                                        {res === "push" && "🤝 Égalité"}
+                                                        {res === "bust" && "💀 Bust !"}
+                                                        {res === "lose" && "❌ Perdu"}
+                                                    </div>
+                                                ))}
+                                                {bjState.totalPayout > 0 && <div className="text-center font-bold text-emerald-400">+{fmtEcus(bjState.totalPayout)} pq</div>}
                                             </div>
                                         )}
                                         <div className="flex-1 h-px bg-border" />
                                     </div>
 
-                                    {/* Player */}
-                                    <div className="text-center space-y-3">
-                                        <div className="flex justify-center gap-3 flex-wrap">
-                                            {bjState.player.map((card: BJCard, i: number) => (
-                                                <PlayingCard key={i} card={card} delay={i >= 2 ? 200 : 0} />
-                                            ))}
-                                        </div>
-                                        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                            Toi — <span className={`font-bold ${bjState.playerValue > 21 ? "text-red-400" : bjState.playerValue === 21 ? "text-emerald-400" : "text-foreground"}`}>{bjState.playerValue}</span>
-                                        </p>
+                                    {/* Player Hands */}
+                                    <div className="flex flex-col gap-6">
+                                        {bjState.hands.map((hand: BJCard[], i: number) => {
+                                            const v = bjState.values[i];
+                                            const isActive = !isGameOver && i === bjState.currentHand;
+                                            return (
+                                                <div key={i} className={`text-center space-y-3 transition-opacity duration-300 ${!isActive && !isGameOver ? "opacity-50" : "opacity-100"}`}>
+                                                    <div className="flex justify-center gap-3 flex-wrap relative">
+                                                        {isActive && <div className="absolute -left-8 top-1/2 -translate-y-1/2 text-xl animate-pulse">👉</div>}
+                                                        {hand.map((card: BJCard, j: number) => (
+                                                            <PlayingCard key={j} card={card} delay={j >= 2 ? 200 : 0} />
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                                        {bjState.hands.length > 1 ? `Main ${i + 1} — ` : "Toi — "}
+                                                        <span className={`font-bold ${v > 21 ? "text-red-400" : v === 21 ? "text-emerald-400" : "text-foreground"}`}>{v}</span>
+                                                    </p>
+                                                    <div className="flex justify-center">
+                                                        <Badge variant="outline" className={`bg-amber-500/5 text-amber-400 border-amber-500/20`}>
+                                                            Mise: {fmtEcus(bjState.bets[i])} pq{bjState.doubled[i] && " (double)"}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
 
                                     {/* Bet info */}
@@ -669,7 +826,7 @@ export default function CasinoPage() {
 
                                     {/* Actions */}
                                     {!isGameOver ? (
-                                        <div className="flex justify-center gap-3 flex-wrap">
+                                        <div className="flex justify-center gap-3 flex-wrap border-t border-border pt-6">
                                             <Button
                                                 onClick={() => bjAction("hit")}
                                                 disabled={bjLoading}
@@ -687,14 +844,23 @@ export default function CasinoPage() {
                                             </Button>
                                             <Button
                                                 onClick={() => bjAction("double")}
-                                                disabled={bjLoading || !bjState.canDouble || bjState.player.length > 2}
+                                                disabled={bjLoading || !bjState.canAfford || bjState.hands[bjState.currentHand].length > 2}
                                                 className="bg-amber-600 hover:bg-amber-500 text-white gap-2 h-12 px-8"
                                             >
                                                 💰 Doubler
                                             </Button>
+                                            {bjState.canSplit && (
+                                                <Button
+                                                    onClick={() => bjAction("split")}
+                                                    disabled={bjLoading || !bjState.canAfford}
+                                                    className="bg-purple-600 hover:bg-purple-500 text-white gap-2 h-12 px-8"
+                                                >
+                                                    ✂️ Séparer
+                                                </Button>
+                                            )}
                                         </div>
                                     ) : (
-                                        <div className="flex justify-center">
+                                        <div className="flex justify-center border-t border-border pt-6">
                                             <Button
                                                 onClick={() => setBjState(null)}
                                                 className="gap-2 h-12 px-8 bg-gradient-to-r from-primary to-primary/80"
@@ -843,6 +1009,127 @@ export default function CasinoPage() {
                                     ) : (
                                         <>🍒 Tirer le levier — {fmtEcus(slotsMise)} pq</>
                                     )}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* ═══════════════ CRASH GAME ═══════════════ */}
+                <TabsContent value="crash" className="mt-6 space-y-6">
+                    <Card className="border-border bg-gradient-to-br from-card via-card to-orange-500/5">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl">🚀 Crash</CardTitle>
+                            <CardDescription>La fusée s'envole... Multiplie tes gains avant l'explosion !</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-8">
+                            {/* Visual Display */}
+                            <div className="relative h-64 w-full rounded-3xl bg-zinc-950 border border-zinc-800 overflow-hidden flex items-center justify-center shadow-inner">
+                                {/* Grid Background */}
+                                <div className="absolute inset-0 opacity-10" style={{
+                                    backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+                                    backgroundSize: "20px 20px"
+                                }} />
+
+                                {/* Multiplier Number */}
+                                <div className={`z-10 text-7xl font-black tabular-nums transition-colors duration-200 ${crashResult && !crashResult.won && !crashResult.error ? "text-red-500" :
+                                    crashResult && crashResult.won && !crashResult.error ? "text-emerald-400" :
+                                        "text-white"
+                                    }`}>
+                                    {crashCurrentMult.toFixed(2)}x
+                                </div>
+
+                                {/* Cashed out notification mid-flight */}
+                                {crashPlaying && parseFloat(crashTarget) <= crashCurrentMult && (
+                                    <div className="absolute top-8 text-xl font-bold font-mono text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full ring-1 ring-emerald-500/50 animate-bounce">
+                                        Retrait: {crashTarget}x
+                                    </div>
+                                )}
+
+                                {/* Explosion / Rocket Emoji (Visual abstraction) */}
+                                {crashResult && !crashResult.error && (
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+                                        <div className="w-full text-center text-red-500 text-9xl animate-pulse blur-sm">💥</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="max-w-xl mx-auto space-y-6">
+                                {/* Result Alert */}
+                                {crashResult && !crashResult.error && (
+                                    <div className={`rounded-2xl p-4 text-center border ${crashResult.won ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+                                        <p className="font-bold text-lg">
+                                            {crashResult.won ? `Retrait réussi (+${fmtEcus(crashResult.winnings)} pq)` : `Crashed à ${crashResult.crashPoint}x !`}
+                                        </p>
+                                        {!crashResult.won && <p className="text-sm opacity-80 mt-1">La fusée a explosé avant ton objectif de {crashTarget}x</p>}
+                                    </div>
+                                )}
+                                {crashResult?.error && (
+                                    <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-4 text-center text-red-400">
+                                        ❌ {crashResult.error}
+                                    </div>
+                                )}
+
+                                {/* Controls */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Mise */}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground">Mise (pq)</label>
+                                        <Input
+                                            type="number" min={1} max={500000}
+                                            value={crashMise}
+                                            onChange={e => setCrashMise(Math.max(1, parseInt(e.target.value) || 0))}
+                                            disabled={crashPlaying}
+                                            className="text-lg h-12"
+                                        />
+                                        <div className="flex gap-1">
+                                            {[100, 1000, "1/2", "Max"].map(v => (
+                                                <Button key={v} variant="outline" size="sm" className="text-xs h-8 flex-1 px-0"
+                                                    disabled={crashPlaying}
+                                                    onClick={() => {
+                                                        if (v === "1/2") setCrashMise(Math.max(1, Math.floor(crashMise / 2)))
+                                                        else if (v === "Max") setCrashMise(Math.min(500000, balance))
+                                                        else setCrashMise(v as number)
+                                                    }}>
+                                                    {v}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Target Multiplier */}
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground">Retrait Auto (x)</label>
+                                        <Input
+                                            type="number" min={1.01} step={0.10}
+                                            value={crashTarget}
+                                            onChange={e => setCrashTarget(e.target.value)}
+                                            disabled={crashPlaying}
+                                            className="text-lg h-12"
+                                        />
+                                        <div className="flex gap-1">
+                                            {["1.50", "2.00", "5.00", "10.0"].map(v => (
+                                                <Button key={v} variant="outline" size="sm" className="text-xs h-8 flex-1 px-0"
+                                                    disabled={crashPlaying}
+                                                    onClick={() => setCrashTarget(v)}>
+                                                    {v}x
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    className="w-full h-16 text-xl font-bold overflow-hidden relative group bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400"
+                                    disabled={crashPlaying || crashMise <= 0 || parseFloat(crashTarget) < 1.01}
+                                    onClick={playCrash}
+                                >
+                                    {crashPlaying ? (
+                                        <span className="flex items-center gap-2"><Loader2 className="h-6 w-6 animate-spin" /> En vol...</span>
+                                    ) : (
+                                        <span className="flex items-center gap-2">Décoller 🚀</span>
+                                    )}
+                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                 </Button>
                             </div>
                         </CardContent>

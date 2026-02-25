@@ -116,6 +116,13 @@ export async function POST(req: NextRequest) {
             total_lost: won ? 0 : mise,
             games_played: 1,
         }, { onConflict: "guild_id,user_id" })
+
+        // Quest Progress logic over queue
+        await supa.from("command_queue").insert([{
+            guild_id: guildId,
+            action: "ADD_QUEST_PROGRESS",
+            payload: { userId: user.id, questId: "SLOTS", amount: 1 }
+        }])
     } catch { /* table may not exist */ }
 
     return NextResponse.json({

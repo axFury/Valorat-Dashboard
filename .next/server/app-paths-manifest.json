@@ -8,6 +8,7 @@
   "/api/bot/[...path]/route": "app/api/bot/[...path]/route.js",
   "/api/casino/balance/route": "app/api/casino/balance/route.js",
   "/api/casino/blackjack/route": "app/api/casino/blackjack/route.js",
+  "/api/casino/crash/route": "app/api/casino/crash/route.js",
   "/api/casino/roulette/route": "app/api/casino/roulette/route.js",
   "/api/casino/shop/route": "app/api/casino/shop/route.js",
   "/api/casino/slots/route": "app/api/casino/slots/route.js",
