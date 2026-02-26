@@ -163,10 +163,10 @@ export async function POST(req: NextRequest) {
             }
 
             // Anti-cheat: Check if the cashoutMult requested is possible given the time elapsed
-            // Standard crash formula: multiplier = Math.pow(Math.E, 0.06 * seconds)
-            // So seconds = ln(multiplier) / 0.06
+            // The frontend is using m = 1.00 * Math.exp(0.0006 * ms)
+            // Thus, in seconds, m = 1.00 * Math.exp(0.6 * elapsedSec)
             const elapsedSec = (Date.now() - game.startTime) / 1000
-            const maxPlausibleMult = Math.pow(Math.E, 0.06 * (elapsedSec + 2)) // 2s buffer for latency
+            const maxPlausibleMult = Math.pow(Math.E, 0.6 * (elapsedSec + 2.5)) // 2.5s buffer for latency
 
             if (cashoutMult > maxPlausibleMult && cashoutMult > 1.00) {
                 // If they ask for 5x but only 1 second has passed, reject.
