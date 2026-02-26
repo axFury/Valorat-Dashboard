@@ -4,6 +4,20 @@ import { cookies } from "next/headers"
 
 export const dynamic = "force-dynamic"
 
+function getSupa() {
+    return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE!)
+}
+
+async function getDiscordUser(req: NextRequest) {
+    const token = req.cookies.get("discord_token")?.value || req.cookies.get("dc_token")?.value
+    if (!token) return null
+    const res = await fetch("https://discord.com/api/users/@me", {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return res.json()
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json()
@@ -19,18 +33,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Multiplicateur cible invalide (1.01x - 1000x)" }, { status: 400 })
         }
 
-        const cookieStore = await cookies()
-        const discordToken = cookieStore.get("discord_token")?.value
-        if (!discordToken) return NextResponse.json({ error: "Non connecté" }, { status: 401 })
+        const user = await getDiscordUser(req)
+        if (!user) return NextResponse.json({ error: "Non connecté" }, { status: 401 })
+        const userId = user.id
 
-        const tokenParts = discordToken.split("|")
-        const userId = tokenParts[0]
-
-        const supa = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE!,
-            { auth: { persistSession: false } }
-        )
+        const supa = getSupa()
 
         // Verif wallet
         const { data: walletData } = await supa

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
+import crypto from "crypto"
 
 export const dynamic = "force-dynamic"
 
@@ -43,11 +45,52 @@ function canSplit(hand: Card[]) {
     return hand.length === 2 && cardValue(hand[0].rank) === cardValue(hand[1].rank)
 }
 
-const games = new Map<string, {
-    deck: Card[]; hands: Card[][]; dealer: Card[]; bets: number[];
-    currentHand: number; guildId: string; userId: string;
-    status: string; doubled: boolean[]; results?: any[]; totalPayout?: number;
-}>()
+function encrypt(text: string) {
+    const key = crypto.scryptSync(process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32), 'salt', 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(text: string) {
+    if (!text) return null;
+    try {
+        const key = crypto.scryptSync(process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32), 'salt', 32);
+        const textParts = text.split(':');
+        const iv = Buffer.from(textParts.shift()!, 'hex');
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        let decrypted = decipher.update(encryptedText, undefined, 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch {
+        return null;
+    }
+}
+
+async function getGameState() {
+    const cookieStore = await cookies()
+    const val = cookieStore.get("bj_state")?.value
+    if (!val) return null
+    const decrypted = decrypt(val)
+    if (!decrypted) return null
+    try {
+        return JSON.parse(decrypted)
+    } catch {
+        return null
+    }
+}
+
+async function saveGameState(game: any) {
+    const cookieStore = await cookies()
+    if (!game) {
+        cookieStore.delete("bj_state")
+    } else {
+        cookieStore.set("bj_state", encrypt(JSON.stringify(game)), { httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 3600, path: "/" })
+    }
+}
 
 async function getDiscordUser(req: NextRequest) {
     const token = req.cookies.get("discord_token")?.value || req.cookies.get("dc_token")?.value
@@ -81,17 +124,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const { guildId, action, mise } = body
-    const gameKey = `${guildId}:${user.id}`
 
     if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 })
 
     if (action === "start") {
         if (!mise || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
         if (mise > 50000) return NextResponse.json({ error: "Mise max: 50 000 pq" }, { status: 400 })
-
-        if (games.has(gameKey)) {
-            return NextResponse.json({ error: "Tu as déjà une partie en cours !" }, { status: 400 })
-        }
 
         const { data: wallet } = await getSupa()
             .from("user_wallets")
@@ -114,7 +152,7 @@ export async function POST(req: NextRequest) {
         const player = [deck.pop()!, deck.pop()!]
         const dealer = [deck.pop()!, deck.pop()!]
 
-        const game: typeof games extends Map<any, infer I> ? I : never = {
+        const game = {
             deck, hands: [player], dealer, bets: [mise],
             currentHand: 0, guildId, userId: user.id, status: "playing", doubled: [false], results: undefined, totalPayout: undefined
         }
@@ -123,14 +161,14 @@ export async function POST(req: NextRequest) {
             let totalPayout = 0;
             if (isBlackjack(dealer)) {
                 game.status = "done"
-                game.results = ["push"]
+                game.results = ["push"] as any
                 totalPayout = mise
             } else {
                 game.status = "done"
-                game.results = ["blackjack"]
+                game.results = ["blackjack"] as any
                 totalPayout = Math.floor(mise * 2.5)
             }
-            game.totalPayout = totalPayout
+            game.totalPayout = totalPayout as any
 
             await getSupa().from("user_wallets")
                 .update({ balance: wallet.balance - mise + totalPayout })
@@ -140,14 +178,14 @@ export async function POST(req: NextRequest) {
                 .from("user_wallets").select("balance")
                 .eq("guild_id", guildId).eq("user_id", user.id).single()
 
+            await saveGameState(null) // clear
             return NextResponse.json({
                 ...gameResponse(game, true),
                 newBalance: finalWallet?.balance,
             })
         }
 
-        games.set(gameKey, game as any)
-        setTimeout(() => { games.delete(gameKey) }, 300_000)
+        await saveGameState(game)
 
         return NextResponse.json({
             ...gameResponse(game),
@@ -156,7 +194,7 @@ export async function POST(req: NextRequest) {
         })
     }
 
-    const game = games.get(gameKey)
+    const game: any = await getGameState()
     if (!game) return NextResponse.json({ error: "Aucune partie en cours" }, { status: 404 })
 
     const { data: wallet } = await getSupa()
@@ -198,7 +236,7 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            const totalBet = game!.bets.reduce((a, b) => a + b, 0)
+            const totalBet = game!.bets.reduce((a: number, b: number) => a + b, 0)
             const won = totalPayout > totalBet ? totalPayout - totalBet : 0
             const lost = totalPayout < totalBet ? totalBet - totalPayout : 0
             await getSupa().from("casino_stats").upsert({
@@ -214,7 +252,7 @@ export async function POST(req: NextRequest) {
             }])
         } catch { }
 
-        games.delete(gameKey)
+        await saveGameState(null)
     }
 
     if (action === "hit") {
@@ -228,6 +266,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ ...gameResponse(game, true), newBalance: w?.balance })
             }
         }
+        await saveGameState(game)
         return NextResponse.json(gameResponse(game))
     }
 
@@ -252,6 +291,7 @@ export async function POST(req: NextRequest) {
                 .eq("guild_id", guildId).eq("user_id", user.id).single()
             return NextResponse.json({ ...gameResponse(game, true), newBalance: w?.balance })
         }
+        await saveGameState(game)
         return NextResponse.json(gameResponse(game))
     }
 
@@ -277,6 +317,7 @@ export async function POST(req: NextRequest) {
         game.hands[game.currentHand].push(game.deck.pop()!)
         game.hands[game.currentHand + 1].push(game.deck.pop()!)
 
+        await saveGameState(game)
         return NextResponse.json(gameResponse(game))
     }
 
@@ -292,6 +333,7 @@ export async function POST(req: NextRequest) {
                 newBalance: finalW?.balance,
             })
         }
+        await saveGameState(game)
         return NextResponse.json(gameResponse(game))
     }
 
