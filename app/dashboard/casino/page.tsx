@@ -424,8 +424,10 @@ export default function CasinoPage() {
             // Better to manage state, but we need the latest multiplier inside the callback.
             // We can just define a state variable `crashManualCashout` inside the effect, but we have `playCrash`.
             // Let's use `window.triggerCashout`.
+            let isAborted = false;
             ; (window as any).triggerCrashCashout = () => {
-                if (!crashPlaying) return;
+                if (isAborted) return;
+                isAborted = true;
                 cashoutReq(parseFloat(document.getElementById('crash-multiplier-display')?.innerText || "1.00"))
                     ; (window as any).triggerCrashCashout = undefined;
             }
@@ -435,7 +437,7 @@ export default function CasinoPage() {
             let sentAutoCashout = false;
 
             function step(now: number) {
-                if (!crashPlaying) return; // Might have been aborted by manual cashout
+                if (isAborted) return; // Might have been aborted by manual cashout
                 const elapsed = now - START_TIME
                 let m = 1.00 * Math.exp(K * elapsed)
 
