@@ -389,7 +389,7 @@ export default function CasinoPage() {
             setBalance(data.newBalance) // Deduct bet immediately
 
             // Wait a small amount of time assuming 1 frame passes
-            const START_TIME = data.startTime || Date.now()
+            const START_TIME = performance.now()
 
             async function cashoutReq(mult: number) {
                 try {
@@ -412,6 +412,10 @@ export default function CasinoPage() {
                         })
                         if (cData.newBalance !== undefined) setBalance(cData.newBalance)
                         setCrashPlaying(false)
+                    } else if (!cRes.ok || cData.error) {
+                        setCrashResult({ error: cData.error || "Erreur lors du retrait" })
+                        setCrashPlaying(false)
+                        if (crashAnimRef.current) cancelAnimationFrame(crashAnimRef.current)
                     }
                 } catch (e) { console.error("Crash cashout error", e); setCrashPlaying(false) }
             }
@@ -432,7 +436,7 @@ export default function CasinoPage() {
 
             function step(now: number) {
                 if (!crashPlaying) return; // Might have been aborted by manual cashout
-                const elapsed = Date.now() - START_TIME
+                const elapsed = now - START_TIME
                 let m = 1.00 * Math.exp(K * elapsed)
 
                 // The visual multiplier should not exceed the max possible, let's say 1000

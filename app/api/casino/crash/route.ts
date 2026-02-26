@@ -81,6 +81,10 @@ export async function POST(req: NextRequest) {
         const body = await req.json()
         const { guildId, action, mise, cashoutMult } = body
 
+        if (!action) {
+            return NextResponse.json({ error: "La version du jeu a été mise à jour. Veuillez rafraîchir la page (F5) !" }, { status: 400 })
+        }
+
         if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 })
         const supa = getSupa()
 
