@@ -817,12 +817,7 @@ export default function CasinoPage() {
                                         })}
                                     </div>
 
-                                    {/* Bet info */}
-                                    <div className="flex justify-center">
-                                        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-base px-4 py-1">
-                                            Mise: {fmtEcus(bjState.bet)} pq{bjState.doubled && " (doublé)"}
-                                        </Badge>
-                                    </div>
+
 
                                     {/* Actions */}
                                     {!isGameOver ? (
