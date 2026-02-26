@@ -390,6 +390,7 @@ export default function CasinoPage() {
 
             // Wait a small amount of time assuming 1 frame passes
             const START_TIME = performance.now()
+            const actualCrashPoint = data.crashPoint || 1000;
 
             async function cashoutReq(mult: number) {
                 try {
@@ -443,6 +444,16 @@ export default function CasinoPage() {
 
                 // The visual multiplier should not exceed the max possible, let's say 1000
                 if (m > 1000) m = 1000;
+
+                // Stop if it hits the actual crash point early
+                if (m >= actualCrashPoint) {
+                    m = actualCrashPoint;
+                    setCrashCurrentMult(m);
+                    isAborted = true;
+                    // Force the server to record the loss by sending a cashout just above the crash point
+                    cashoutReq(actualCrashPoint + 0.01);
+                    return;
+                }
 
                 // If we reach the target, trigger automatic cashout
                 if (m >= targetNum && !sentAutoCashout) {

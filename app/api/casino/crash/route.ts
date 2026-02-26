@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
                 status: "playing",
                 mise,
                 newBalance: currentEcus - mise,
-                startTime: game.startTime
+                startTime: game.startTime,
+                crashPoint: game.crashPoint
             })
             await saveGameState(res, game)
             return res
