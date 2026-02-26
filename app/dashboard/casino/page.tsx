@@ -372,59 +372,96 @@ export default function CasinoPage() {
         setCrashCurrentMult(1.00)
         if (crashAnimRef.current) cancelAnimationFrame(crashAnimRef.current)
 
-        const res = await fetch("/api/casino/crash", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ guildId, mise: crashMise, target: targetNum }),
-        })
+        try {
+            const res = await fetch("/api/casino/crash", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ guildId, action: "start", mise: crashMise, cashoutMult: 1.00 }),
+            })
+            const data = await res.json()
 
-        const data = await res.json()
-        if (!res.ok) {
-            setCrashPlaying(false)
-            setCrashResult({ error: data.error })
-            return
-        }
-
-        // Animation de la courbe exponentielle (M = e^(k*t))
-        // Plus on va haut, plus ça va vite mais proportionnellement.
-        const START_TIME = performance.now()
-        // Temps théorique pour atteindre crashPoint: utilisons 1000ms * ln(crashPoint)
-        // Crash instantané à 1.00
-        if (data.crashPoint <= 1.00) {
-            setCrashCurrentMult(1.00)
-            setCrashResult(data)
-            setBalance(data.newBalance)
-            setCrashPlaying(false)
-            return
-        }
-
-        // Objectif visuel = animer jusqu'au crashPoint (même si on gagne avant, on voit la fusée exploser à crashPoint)
-        const K = 0.0006 // vitesse exponentielle (0.0006 * 1000ms = ln(1.82) / s)
-        const C = 1.05   // base
-
-        function step(now: number) {
-            const elapsed = now - START_TIME
-            // Formule: mult = 1.00 * e^(k * elapsed)
-            let m = 1.00 * Math.exp(K * elapsed)
-
-            if (data.won && m >= data.crashPoint) {
-                m = data.crashPoint
-            } else if (!data.won && m >= data.crashPoint) {
-                m = data.crashPoint
-            }
-
-            setCrashCurrentMult(m)
-
-            if (m < data.crashPoint) {
-                crashAnimRef.current = requestAnimationFrame(step)
-            } else {
-                setCrashCurrentMult(data.crashPoint)
-                setCrashResult(data)
-                setBalance(data.newBalance)
+            if (!res.ok) {
                 setCrashPlaying(false)
+                setCrashResult({ error: data.error })
+                return
             }
+
+            setBalance(data.newBalance) // Deduct bet immediately
+
+            // Wait a small amount of time assuming 1 frame passes
+            const START_TIME = data.startTime || Date.now()
+
+            async function cashoutReq(mult: number) {
+                try {
+                    const cRes = await fetch("/api/casino/crash", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ guildId, action: "cashout", mise: crashMise, cashoutMult: mult }),
+                    })
+                    const cData = await cRes.json()
+
+                    if (cData.status === "cashed_out" || cData.status === "crashed") {
+                        if (crashAnimRef.current) cancelAnimationFrame(crashAnimRef.current)
+                        setCrashCurrentMult(cData.status === "crashed" ? cData.crashPoint : mult)
+                        setCrashResult({
+                            won: cData.status === "cashed_out",
+                            crashPoint: cData.crashPoint,
+                            winnings: cData.winnings,
+                            multiplier: cData.multiplier,
+                            newBalance: cData.newBalance
+                        })
+                        if (cData.newBalance !== undefined) setBalance(cData.newBalance)
+                        setCrashPlaying(false)
+                    }
+                } catch (e) { console.error("Crash cashout error", e); setCrashPlaying(false) }
+            }
+
+            // Expose manual cashout to window for button to use (temporary workaround since we anim in a loop)
+            // Better to manage state, but we need the latest multiplier inside the callback.
+            // We can just define a state variable `crashManualCashout` inside the effect, but we have `playCrash`.
+            // Let's use `window.triggerCashout`.
+            ; (window as any).triggerCrashCashout = () => {
+                if (!crashPlaying) return;
+                cashoutReq(parseFloat(document.getElementById('crash-multiplier-display')?.innerText || "1.00"))
+                    ; (window as any).triggerCrashCashout = undefined;
+            }
+
+            // Animation loop
+            const K = 0.0006 // vitesse exponentielle
+            let sentAutoCashout = false;
+
+            function step(now: number) {
+                if (!crashPlaying) return; // Might have been aborted by manual cashout
+                const elapsed = Date.now() - START_TIME
+                let m = 1.00 * Math.exp(K * elapsed)
+
+                // The visual multiplier should not exceed the max possible, let's say 1000
+                if (m > 1000) m = 1000;
+
+                // If we reach the target, trigger automatic cashout
+                if (m >= targetNum && !sentAutoCashout) {
+                    m = targetNum; // freeze visual at target while waiting
+                    sentAutoCashout = true;
+                    cashoutReq(targetNum);
+                }
+
+                setCrashCurrentMult(m)
+
+                if (!sentAutoCashout && typeof (window as any).triggerCrashCashout === "function") {
+                    crashAnimRef.current = requestAnimationFrame(step)
+                }
+            }
+            crashAnimRef.current = requestAnimationFrame(step)
+        } catch (e) {
+            setCrashPlaying(false);
+            console.error(e)
         }
-        crashAnimRef.current = requestAnimationFrame(step)
+    }
+
+    async function handleManualCashout() {
+        if (typeof (window as any).triggerCrashCashout === "function") {
+            (window as any).triggerCrashCashout();
+        }
     }
 
     // ── Mines play ──
@@ -1069,7 +1106,7 @@ export default function CasinoPage() {
                         </CardHeader>
                         <CardContent className="space-y-8">
                             {/* Visual Display */}
-                            <div className="relative h-64 w-full rounded-3xl bg-zinc-950 border border-zinc-800 overflow-hidden flex items-center justify-center shadow-inner">
+                            <div className="relative h-64 w-full rounded-3xl bg-zinc-950 border border-zinc-800 overflow-hidden flex items-center shadow-inner">
                                 {/* Grid Background */}
                                 <div className="absolute inset-0 opacity-10" style={{
                                     backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
@@ -1077,24 +1114,49 @@ export default function CasinoPage() {
                                 }} />
 
                                 {/* Multiplier Number */}
-                                <div className={`z-10 text-7xl font-black tabular-nums transition-colors duration-200 ${crashResult && !crashResult.won && !crashResult.error ? "text-red-500" :
-                                    crashResult && crashResult.won && !crashResult.error ? "text-emerald-400" :
-                                        "text-white"
-                                    }`}>
-                                    {crashCurrentMult.toFixed(2)}x
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div
+                                        id="crash-multiplier-display"
+                                        className={`z-10 text-7xl font-black tabular-nums transition-colors duration-200 ${crashResult && !crashResult.won && !crashResult.error ? "text-red-500" :
+                                            crashResult && crashResult.won && !crashResult.error ? "text-emerald-400" :
+                                                "text-white"
+                                            }`}>
+                                        {crashCurrentMult.toFixed(2)}x
+                                    </div>
                                 </div>
 
                                 {/* Cashed out notification mid-flight */}
-                                {crashPlaying && parseFloat(crashTarget) <= crashCurrentMult && (
-                                    <div className="absolute top-8 text-xl font-bold font-mono text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full ring-1 ring-emerald-500/50 animate-bounce">
-                                        Retrait: {crashTarget}x
+                                {crashPlaying && crashResult?.won && (
+                                    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20 text-xl font-bold font-mono text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full ring-1 ring-emerald-500/50 animate-bounce">
+                                        Retrait effectué!
                                     </div>
                                 )}
 
-                                {/* Explosion / Rocket Emoji (Visual abstraction) */}
-                                {crashResult && !crashResult.error && (
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
-                                        <div className="w-full text-center text-red-500 text-9xl animate-pulse blur-sm">💥</div>
+                                {/* Rocket Animation */}
+                                {crashCurrentMult >= 1.00 && (!crashResult || crashResult.won) && (
+                                    <div
+                                        className="absolute z-20 text-6xl transition-all duration-75"
+                                        style={{
+                                            // Make rocket curve up and to the right
+                                            left: `${Math.min(80, (crashCurrentMult - 1) * 10 + 10)}%`,
+                                            bottom: `${Math.min(70, (crashCurrentMult - 1) * 15 + 10)}%`,
+                                            transform: `rotate(${Math.min(45, (crashCurrentMult - 1) * 20)}deg)`
+                                        }}
+                                    >
+                                        🚀
+                                    </div>
+                                )}
+
+                                {/* Explosion Emoji */}
+                                {crashResult && !crashResult.error && !crashResult.won && (
+                                    <div
+                                        className="absolute z-20 text-7xl animate-[ping_0.5s_ease-out_forwards]"
+                                        style={{
+                                            left: `${Math.min(80, (crashResult.crashPoint - 1) * 10 + 10)}%`,
+                                            bottom: `${Math.min(70, (crashResult.crashPoint - 1) * 15 + 10)}%`,
+                                        }}
+                                    >
+                                        💥
                                     </div>
                                 )}
                             </div>
@@ -1164,18 +1226,24 @@ export default function CasinoPage() {
                                     </div>
                                 </div>
 
-                                <Button
-                                    className="w-full h-16 text-xl font-bold overflow-hidden relative group bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400"
-                                    disabled={crashPlaying || crashMise <= 0 || parseFloat(crashTarget) < 1.01}
-                                    onClick={playCrash}
-                                >
-                                    {crashPlaying ? (
-                                        <span className="flex items-center gap-2"><Loader2 className="h-6 w-6 animate-spin" /> En vol...</span>
-                                    ) : (
-                                        <span className="flex items-center gap-2">Décoller 🚀</span>
-                                    )}
-                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                </Button>
+                                {crashPlaying ? (
+                                    <Button
+                                        className="w-full h-16 text-xl font-bold overflow-hidden relative group bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20"
+                                        onClick={handleManualCashout}
+                                    >
+                                        <span className="flex items-center gap-2 relative z-10">Encaisser {((crashMise * crashCurrentMult) || 0).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} pq</span>
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0" />
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        className="w-full h-16 text-xl font-bold overflow-hidden relative group bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 shadow-lg shadow-orange-900/20"
+                                        disabled={crashMise <= 0 || parseFloat(crashTarget) < 1.01}
+                                        onClick={playCrash}
+                                    >
+                                        <span className="flex items-center gap-2 relative z-10">Décoller 🚀</span>
+                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0" />
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
