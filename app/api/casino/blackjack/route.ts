@@ -46,9 +46,9 @@ function canSplit(hand: Card[]) {
 }
 
 function encrypt(text: string) {
-    const key = crypto.scryptSync(process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32), 'salt', 32);
+    const secret = process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32).padEnd(32, '0');
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(secret), iv);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -57,15 +57,16 @@ function encrypt(text: string) {
 function decrypt(text: string) {
     if (!text) return null;
     try {
-        const key = crypto.scryptSync(process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32), 'salt', 32);
+        const secret = process.env.SUPABASE_SERVICE_ROLE!.slice(0, 32).padEnd(32, '0');
         const textParts = text.split(':');
         const iv = Buffer.from(textParts.shift()!, 'hex');
         const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(secret), iv);
         let decrypted = decipher.update(encryptedText, undefined, 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;
-    } catch {
+    } catch (e) {
+        console.error("Decryption error:", e);
         return null;
     }
 }
@@ -78,8 +79,9 @@ async function getGameState() {
     if (!decrypted) return null
     try {
         return JSON.parse(decrypted)
-    } catch {
-        return null
+    } catch (e) {
+        console.error("JSON parse error:", e);
+        return null;
     }
 }
 
