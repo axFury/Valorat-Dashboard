@@ -499,24 +499,28 @@ export default function CasinoPage() {
             </div>
 
             <Tabs defaultValue="roulette" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="roulette" className="gap-2">
-                        <span className="text-lg">🎰</span>
+                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto p-1">
+                    <TabsTrigger value="roulette" className="gap-2 p-2">
+                        <span className="text-lg leading-none">🎰</span>
                         <span className="hidden sm:inline">Roulette</span>
                     </TabsTrigger>
-                    <TabsTrigger value="blackjack" className="gap-2">
-                        <span className="text-lg">🃏</span>
+                    <TabsTrigger value="blackjack" className="gap-2 p-2">
+                        <span className="text-lg leading-none">🃏</span>
                         <span className="hidden sm:inline">Blackjack</span>
                     </TabsTrigger>
-                    <TabsTrigger value="slots" className="gap-2">
-                        <span className="text-lg">🍒</span>
+                    <TabsTrigger value="slots" className="gap-2 p-2">
+                        <span className="text-lg leading-none">🍒</span>
                         <span className="hidden sm:inline">Machine à sous</span>
                     </TabsTrigger>
-                    <TabsTrigger value="crash" className="gap-2">
-                        <span className="text-lg">🚀</span>
+                    <TabsTrigger value="crash" className="gap-2 p-2">
+                        <span className="text-lg leading-none">🚀</span>
                         <span className="hidden sm:inline">Crash</span>
                     </TabsTrigger>
-                    <TabsTrigger value="bets" className="gap-2">
+                    <TabsTrigger value="mines" className="gap-2 p-2">
+                        <span className="text-lg leading-none">💣</span>
+                        <span className="hidden sm:inline">Mines</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="bets" className="gap-2 p-2">
                         <Dices className="h-4 w-4" />
                         <span className="hidden sm:inline">Paris</span>
                     </TabsTrigger>
