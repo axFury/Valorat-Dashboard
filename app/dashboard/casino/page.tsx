@@ -187,6 +187,12 @@ export default function CasinoPage() {
     const [crashCurrentMult, setCrashCurrentMult] = useState(1.00)
     const crashAnimRef = useRef<number>(0)
 
+    // Mines
+    const [minesMise, setMinesMise] = useState(100)
+    const [minesCount, setMinesCount] = useState(3)
+    const [minesState, setMinesState] = useState<any>(null)
+    const [minesLoading, setMinesLoading] = useState(false)
+
     const supa = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -419,6 +425,43 @@ export default function CasinoPage() {
             }
         }
         crashAnimRef.current = requestAnimationFrame(step)
+    }
+
+    // ── Mines play ──
+    async function playMines(action: "start" | "pick" | "cashout", pickIndex?: number) {
+        if (!guildId || minesLoading) return
+
+        if (action === "start" && minesState?.status === "playing") return
+        if (action !== "start" && minesState?.status !== "playing") return
+
+        setMinesLoading(true)
+        if (action === "start") setMinesState({ status: "loading", board: Array(25).fill("?") })
+
+        try {
+            const res = await fetch("/api/casino/mines", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ guildId, action, mise: minesMise, minesCount, pickIndex }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                if (action === "start") setMinesState({ error: data.error })
+                return
+            }
+
+            // Delay reveal slightly for UX
+            if (action === "pick") {
+                setTimeout(() => setMinesState(data), 150)
+            } else {
+                setMinesState(data)
+            }
+
+            if (data.newBalance !== undefined) setBalance(data.newBalance)
+        } catch (e) {
+            console.error("Mines fetch error", e)
+        } finally {
+            setMinesLoading(false)
+        }
     }
 
     function userName(userId: string) { return profiles.get(userId)?.username || "Utilisateur" }
@@ -1129,6 +1172,141 @@ export default function CasinoPage() {
                                     )}
                                     <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* ═══════════════ MINES GAME ═══════════════ */}
+                <TabsContent value="mines" className="mt-6 space-y-6">
+                    <Card className="border-border bg-card">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl">💣 Mines</CardTitle>
+                            <CardDescription>Découvre les étoiles et évite les mines pour multiplier tes gains !</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {/* Inputs & Cashout */}
+                            <div className="flex flex-col sm:flex-row gap-4 items-end">
+                                <div className="space-y-2 flex-1 relative">
+                                    <label className="text-sm font-medium">Mise (pq)</label>
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        value={minesMise}
+                                        onChange={(e) => setMinesMise(Number(e.target.value))}
+                                        disabled={minesState?.status === "playing" || minesLoading}
+                                        className="bg-zinc-900 border-zinc-800 focus-visible:ring-primary/50 text-white rounded-xl h-12 text-lg"
+                                    />
+                                    <div className="absolute right-2 top-[34px] flex gap-1">
+                                        <Button variant="ghost" size="sm" onClick={() => setMinesMise(Math.max(1, minesMise / 2))} disabled={minesState?.status === "playing" || minesLoading} className="h-8 w-8 p-0">/2</Button>
+                                        <Button variant="ghost" size="sm" onClick={() => setMinesMise(minesMise * 2)} disabled={minesState?.status === "playing" || minesLoading} className="h-8 w-8 p-0">x2</Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2 flex-1">
+                                    <label className="text-sm font-medium">Nombre de mines ({minesCount})</label>
+                                    <div className="flex items-center gap-2 h-12 bg-zinc-900 border border-zinc-800 rounded-xl px-4">
+                                        <input
+                                            type="range"
+                                            min="1" max="24"
+                                            value={minesCount}
+                                            onChange={(e) => setMinesCount(Number(e.target.value))}
+                                            disabled={minesState?.status === "playing" || minesLoading}
+                                            className="w-full accent-primary"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex-1 w-full sm:w-auto h-12">
+                                    {minesState?.status === "playing" ? (
+                                        <Button
+                                            size="lg"
+                                            className="w-full h-full font-bold text-lg bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20"
+                                            onClick={() => playMines("cashout")}
+                                            disabled={minesLoading || minesState?.revealed?.length === 0}
+                                        >
+                                            Encaisser {(minesMise * (minesState?.multiplier || 1)).toLocaleString("fr-FR")} pq
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="lg"
+                                            className="w-full h-full font-bold text-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                                            onClick={() => playMines("start")}
+                                            disabled={minesLoading || minesMise <= 0 || minesMise > balance || minesCount < 1 || minesCount > 24}
+                                        >
+                                            {minesLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Jouer"}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Math / Multiplier Info */}
+                            {minesState?.status === "playing" && (
+                                <div className="flex justify-between items-center px-4 py-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                                    <span className="text-muted-foreground text-sm font-medium">Diamants trouvés : <span className="text-white">{minesState.revealed?.length || 0}</span></span>
+                                    <span className="text-muted-foreground text-sm font-medium">Multiplicateur : <span className="text-primary text-lg font-bold">{minesState.multiplier?.toFixed(2)}x</span></span>
+                                </div>
+                            )}
+
+                            {/* End Game Messages */}
+                            {minesState?.status === "bombed" && (
+                                <div className="p-4 bg-red-950/40 border border-red-900/50 rounded-xl text-center">
+                                    <p className="text-red-400 font-bold text-lg">💥 BOUM ! La mine a explosé.</p>
+                                    <p className="text-muted-foreground">Vous avez perdu {minesState.mise?.toLocaleString("fr-FR")} pq.</p>
+                                </div>
+                            )}
+                            {minesState?.status === "cashed_out" && (
+                                <div className="p-4 bg-green-950/40 border border-green-900/50 rounded-xl text-center animate-in zoom-in duration-300">
+                                    <p className="text-green-400 font-bold text-lg">💰 Encaissement réussi !</p>
+                                    <p className="text-green-300">Gains : +{minesState.winnings?.toLocaleString("fr-FR")} pq ({minesState.multiplier?.toFixed(2)}x)</p>
+                                </div>
+                            )}
+                            {minesState?.error && (
+                                <div className="p-4 bg-red-950 border border-red-900 rounded-xl text-center">
+                                    <p className="text-red-400 font-bold">{minesState.error}</p>
+                                </div>
+                            )}
+
+                            {/* 5x5 Grid */}
+                            <div className="flex justify-center mt-8">
+                                <div className="grid grid-cols-5 gap-2 sm:gap-3 p-4 bg-zinc-900/80 rounded-2xl border border-zinc-800/50 shadow-inner w-full max-w-md aspect-square">
+                                    {Array.from({ length: 25 }).map((_, i) => {
+                                        const isRevealed = minesState?.status !== "playing" && minesState?.board ? true : minesState?.revealed?.includes(i);
+                                        const content = isRevealed ? (minesState?.board ? minesState.board[i] : 'gem') : null;
+
+                                        // Styling based on state
+                                        const isBomb = content === 'bomb';
+                                        const isGem = content === 'gem';
+                                        // Highlight the bomb that killed the player
+                                        const isFatalBomb = isBomb && minesState?.status === "bombed" && !minesState?.revealed?.includes(i) === false; // (Wait, the backend clears cookie, so revealed doesn't contain the fatal bomb perfectly if we don't save it. Actually, backend adds to revealed BEFORE sending status="bombed". So the last item in revealed is the fatal bomb).
+                                        const isLastPicked = minesState?.revealed?.[minesState.revealed.length - 1] === i;
+
+                                        // Dim unpicked tiles when game is over
+                                        const isDimmed = minesState?.status !== "playing" && minesState?.board && !minesState?.revealed?.includes(i) && !isBomb;
+
+                                        return (
+                                            <button
+                                                key={`mine-${i}`}
+                                                disabled={minesState?.status !== "playing" || isRevealed || minesLoading}
+                                                onClick={() => playMines("pick", i)}
+                                                className={`
+                                                    relative w-full h-full rounded-xl transition-all duration-300 ease-out transform
+                                                    flex items-center justify-center text-3xl sm:text-4xl shadow-sm
+                                                    ${!isRevealed ? "bg-zinc-800 hover:bg-zinc-700 hover:scale-[1.03] hover:shadow-md border-b-4 border-zinc-900 cursor-pointer" : ""}
+                                                    ${isGem ? "bg-emerald-900/40 border border-emerald-500/30 shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]" : ""}
+                                                    ${isBomb ? "bg-red-900/40 border border-red-500/30 shadow-[inset_0_0_15px_rgba(239,68,68,0.2)]" : ""}
+                                                    ${isFatalBomb && isLastPicked ? "bg-red-600/60 scale-105 border-red-500 z-10 animate-pulse" : ""}
+                                                    ${isDimmed ? "opacity-30" : "opacity-100"}
+                                                `}
+                                                style={{ perspective: "1000px" }}
+                                            >
+                                                {/* Animation wrapper for content */}
+                                                <div className={`transition-all duration-500 ${isRevealed ? "scale-100 rotate-y-0 opacity-100" : "scale-50 rotate-y-90 opacity-0"}`}>
+                                                    {isBomb && "💣"}
+                                                    {isGem && "💎"}
+                                                </div>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
