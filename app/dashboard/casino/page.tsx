@@ -431,7 +431,7 @@ export default function CasinoPage() {
         return <div className="flex h-96 items-center justify-center text-muted-foreground">Sélectionne un serveur</div>
     }
 
-    const isGameOver = bjState?.result && bjState.result !== ""
+    const isGameOver = bjState?.status === "done" || bjState?.error || bjState?.initError;
 
     return (
         <div className="space-y-6">
