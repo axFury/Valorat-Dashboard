@@ -109,11 +109,12 @@ async function getDiscordUser(req: NextRequest) {
 }
 
 function gameResponse(game: any, showDealer = false) {
+    const isGameOver = game.currentHand >= game.hands.length;
     return {
         hands: game.hands,
         currentHand: game.currentHand,
         values: game.hands.map((h: Card[]) => handValue(h)),
-        canSplit: canSplit(game.hands[game.currentHand]) && game.hands.length < 3,
+        canSplit: !isGameOver && canSplit(game.hands[game.currentHand]) && game.hands.length < 3,
         dealer: showDealer ? game.dealer : [game.dealer[0], { suit: "?", rank: "?" }],
         dealerValue: showDealer ? handValue(game.dealer) : cardValue(game.dealer[0].rank),
         bets: game.bets,
