@@ -34,13 +34,13 @@ export async function POST(req: NextRequest) {
 
         // Verif wallet
         const { data: walletData } = await supa
-            .from("wallets")
-            .select("ecus")
+            .from("user_wallets")
+            .select("balance")
             .eq("guild_id", guildId)
             .eq("user_id", userId)
             .single()
 
-        const currentEcus = walletData?.ecus || 0
+        const currentEcus = walletData?.balance || 0
         if (currentEcus < mise) {
             return NextResponse.json({ error: "Fonds insuffisants" }, { status: 400 })
         }
@@ -69,12 +69,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Update DB
-        await supa.from("wallets").upsert({
-            guild_id: guildId,
-            user_id: userId,
-            ecus: newBalance,
+        await supa.from("user_wallets").update({
+            balance: newBalance,
             updated_at: new Date().toISOString()
-        })
+        }).eq("guild_id", guildId).eq("user_id", userId)
 
         try {
             // Quest Progress logic over queue for CRASH

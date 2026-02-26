@@ -309,7 +309,7 @@ export default function CasinoPage() {
         setBjLoading(false)
 
         if (!res.ok) {
-            setBjState((prev: any) => ({ ...prev, error: data.error }))
+            setBjState((prev: any) => prev ? { ...prev, error: data.error } : { initError: data.error })
             return
         }
 
@@ -749,7 +749,7 @@ export default function CasinoPage() {
                         </CardHeader>
                         <CardContent className="space-y-8">
                             {/* Game table */}
-                            {bjState ? (
+                            {bjState && !bjState.initError ? (
                                 <div className="space-y-8">
                                     {/* Dealer */}
                                     <div className="text-center space-y-3">
@@ -907,6 +907,9 @@ export default function CasinoPage() {
                                         >
                                             {bjLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "🃏"} Jouer — {fmtEcus(bjMise)} pq
                                         </Button>
+                                        {bjState?.initError && (
+                                            <p className="text-sm font-medium text-red-400">❌ {bjState.initError}</p>
+                                        )}
                                     </div>
                                 </div>
                             )}
