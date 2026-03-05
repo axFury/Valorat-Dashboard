@@ -22,6 +22,7 @@ import {
   X,
   LogOut,
   Layers,
+  Swords,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -32,6 +33,7 @@ const getNavigation = (guildId?: string) => [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { name: "Économie", href: "/dashboard/economy", icon: Coins },
   { name: "TCG Collection", href: "/dashboard/tcg", icon: Layers },
+  { name: "TCG Arène", href: "/dashboard/tcg/combat", icon: Swords },
   { name: "Casino", href: "/dashboard/casino", icon: Dices },
   { name: "Modération", href: "/dashboard/moderation", icon: Shield }, // ← masquée si pas admin
   { name: "Musique", href: "/dashboard/music", icon: Music },
