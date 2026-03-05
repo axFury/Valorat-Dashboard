@@ -111,7 +111,7 @@ export default function TCGCombatPage() {
                         const idx = prev.findIndex(m => m.id === updated.id)
                         if (idx >= 0) {
                             const copy = [...prev]
-                            copy[idx] = updated
+                            copy[idx] = { ...copy[idx], ...updated }
                             return copy
                         } else {
                             return [updated, ...prev]
@@ -122,19 +122,22 @@ export default function TCGCombatPage() {
                 }
 
                 // Update active match if relevant
-                if (activeMatch && activeMatch.id === updated.id) {
-                    setActiveMatch(updated)
-                }
+                setActiveMatch(current => {
+                    if (current && current.id === updated.id) {
+                        return { ...current, ...updated }
+                    }
 
-                // If we created a lobby and someone joined, or we joined
-                if (updated.status === "active" && !activeMatch && (updated.host_id === userId || updated.guest_id === userId)) {
-                    setActiveMatch(updated)
-                }
+                    // If we created a lobby and someone joined, or we joined
+                    if (!current && updated.status === "active" && (updated.host_id === userId || updated.guest_id === userId)) {
+                        return { ...updated }
+                    }
+                    return current
+                })
             })
             .subscribe()
 
         return () => { supa.removeChannel(channel) }
-    }, [guildId, activeMatch, userId])
+    }, [guildId, userId])
 
     /* ─── Actions ─── */
     async function createLobby() {
@@ -142,6 +145,7 @@ export default function TCGCombatPage() {
         setLoading(true)
         const res = await fetch("/api/casino/tcg/matches", {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ guildId, deck: selectedCards })
         })
         if (res.ok) {
@@ -190,6 +194,7 @@ export default function TCGCombatPage() {
         if (!activeMatch) return
         const res = await fetch(`/api/casino/tcg/matches/${activeMatch.id}`, {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "attack", guildId, attackIndex: index })
         })
         if (!res.ok) {
@@ -208,15 +213,15 @@ export default function TCGCombatPage() {
         const isHost = userId === activeMatch.host_id
         const isWaiting = activeMatch.status === "waiting"
 
-        const myP = isHost ? { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp || [], active: activeMatch.state.hostActive || 0 }
-            : { deck: activeMatch.guest_deck!, hp: activeMatch.state.guestHp, active: activeMatch.state.guestActive }
+        const myP = isHost ? { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0 }
+            : { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0 }
 
-        const opP = isWaiting ? null : (isHost ? { deck: activeMatch.guest_deck!, hp: activeMatch.state.guestHp, active: activeMatch.state.guestActive }
-            : { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp, active: activeMatch.state.hostActive })
+        const opP = isWaiting ? null : (isHost ? { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0 }
+            : { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0 })
 
         const myActive = myP.deck[myP.active]
         const opActive = opP ? opP.deck[opP.active] : null
-        const isMyTurn = activeMatch.state.turn === userId
+        const isMyTurn = activeMatch.state?.turn === userId
 
         return (
             <div className="space-y-6 max-w-5xl mx-auto pb-10">
