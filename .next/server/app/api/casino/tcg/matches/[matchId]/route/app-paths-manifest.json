@@ -1,0 +1,3 @@
+{
+  "/api/casino/tcg/matches/[matchId]/route": "app/api/casino/tcg/matches/[matchId]/route.js"
+}

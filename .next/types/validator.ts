@@ -110,6 +110,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/dashboard/tcg/booster/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/tcg/booster">> = Specific
+  const handler = {} as typeof import("../../app/dashboard/tcg/booster/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/dashboard/tcg/combat/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/tcg/combat">> = Specific
+  const handler = {} as typeof import("../../app/dashboard/tcg/combat/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/dashboard/tcg/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/tcg">> = Specific
+  const handler = {} as typeof import("../../app/dashboard/tcg/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/dashboard/valorant/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/dashboard/valorant">> = Specific
@@ -249,6 +276,33 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/casino/tcg/booster">> = Specific
   const handler = {} as typeof import("../../app/api/casino/tcg/booster/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/casino/tcg/collection/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/casino/tcg/collection">> = Specific
+  const handler = {} as typeof import("../../app/api/casino/tcg/collection/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/casino/tcg/matches/[matchId]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/casino/tcg/matches/[matchId]">> = Specific
+  const handler = {} as typeof import("../../app/api/casino/tcg/matches/[matchId]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/casino/tcg/matches/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/casino/tcg/matches">> = Specific
+  const handler = {} as typeof import("../../app/api/casino/tcg/matches/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

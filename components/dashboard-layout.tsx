@@ -23,6 +23,7 @@ import {
   LogOut,
   Layers,
   Swords,
+  Package,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -34,6 +35,7 @@ const getNavigation = (guildId?: string) => [
   { name: "Économie", href: "/dashboard/economy", icon: Coins },
   { name: "TCG Collection", href: "/dashboard/tcg", icon: Layers },
   { name: "TCG Arène", href: "/dashboard/tcg/combat", icon: Swords },
+  { name: "TCG Boosters", href: "/dashboard/tcg/booster", icon: Package },
   { name: "Casino", href: "/dashboard/casino", icon: Dices },
   { name: "Modération", href: "/dashboard/moderation", icon: Shield }, // ← masquée si pas admin
   { name: "Musique", href: "/dashboard/music", icon: Music },
@@ -49,8 +51,8 @@ function hasAdminOrManageGuild(permStr?: string) {
   try {
     if (!permStr) return false
     const p = BigInt(permStr)
-    const ADMIN = 0x00000008n
-    const MANAGE_GUILD = 0x00000020n
+    const ADMIN = BigInt(0x00000008)
+    const MANAGE_GUILD = BigInt(0x00000020)
     return (p & ADMIN) === ADMIN || (p & MANAGE_GUILD) === MANAGE_GUILD
   } catch {
     return false

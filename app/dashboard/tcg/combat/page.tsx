@@ -283,9 +283,9 @@ export default function TCGCombatPage() {
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="w-32 h-32 sm:w-40 sm:h-40 relative group">
-                                            <div className="absolute inset-0 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all" />
-                                            <img src={opActive?.image} className="w-full h-full object-contain relative z-10 drop-shadow-2xl brightness-75 grayscale-[0.2]" />
+                                        <div className="w-32 h-32 sm:w-48 sm:h-48 relative group transition-transform duration-700 hover:scale-105">
+                                            <div className="absolute inset-0 bg-red-500/20 rounded-full blur-3xl group-hover:bg-red-500/30 transition-all duration-500" />
+                                            <img src={opActive?.image} className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_25px_rgba(239,68,68,0.4)] brightness-90 grayscale-[0.1]" />
                                         </div>
                                     </>
                                 )}
@@ -293,9 +293,9 @@ export default function TCGCombatPage() {
 
                             {/* Player side */}
                             <div className="p-6 sm:p-8 flex-1 flex flex-col items-center justify-center gap-4 bg-emerald-950/10">
-                                <div className="w-32 h-32 sm:w-40 sm:h-40 relative group">
-                                    <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
-                                    <img src={myActive.image} className={`w-full h-full object-contain relative z-10 drop-shadow-2xl ${!isMyTurn || isWaiting ? "brightness-75" : "animate-pulse"}`} />
+                                <div className="w-32 h-32 sm:w-48 sm:h-48 relative group transition-transform duration-700 hover:scale-105">
+                                    <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all duration-500" />
+                                    <img src={myActive.image} className={`w-full h-full object-contain relative z-10 drop-shadow-[0_0_25px_rgba(16,185,129,0.4)] ${!isMyTurn || isWaiting ? "brightness-90" : "animate-pulse"}`} />
                                 </div>
                                 <div className="text-center">
                                     <h3 className="text-xl font-bold text-emerald-400">{myActive.name}</h3>
@@ -325,11 +325,11 @@ export default function TCGCombatPage() {
                                                 key={i}
                                                 onClick={() => handleAttack(i)}
                                                 variant={i === 0 ? "default" : "secondary"}
-                                                className="h-16 flex flex-col items-center justify-center gap-0.5 group relative overflow-hidden"
+                                                className={`h-16 flex flex-col items-center justify-center gap-0.5 group relative overflow-hidden transition-all duration-300 hover:scale-[1.02] ${i === 0 ? "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-[0_0_20px_rgba(220,38,38,0.4)] border-none" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
                                             >
-                                                <span className="font-bold relative z-10">{atk.name}</span>
-                                                <span className="text-[10px] opacity-60 relative z-10">{atk.damage} Dmg • {atk.accuracy}% Précision</span>
-                                                <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-200" />
+                                                <span className={`font-bold relative z-10 ${i === 0 ? "text-white" : "text-zinc-200 group-hover:text-white"}`}>{atk.name}</span>
+                                                <span className={`text-[10px] relative z-10 ${i === 0 ? "text-red-100" : "text-zinc-400"}`}>{atk.damage} Dmg • {atk.accuracy}% Précision</span>
+                                                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                                             </Button>
                                         ))}
                                     </div>
@@ -389,7 +389,10 @@ export default function TCGCombatPage() {
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto min-h-0 p-6">
                             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                                {CARDS.filter(c => inventory.includes(c.id)).map(card => {
+                                {CARDS.filter(c => inventory.includes(c.id)).sort((a, b) => {
+                                    const RARITY_ORDER: Record<string, number> = { COMMON: 0, RARE: 1, EPIC: 2, LEGENDARY: 3, MYTHIC: 4 }
+                                    return RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity]
+                                }).map(card => {
                                     const isSelected = selectedCards.includes(card.id)
                                     return (
                                         <div
@@ -445,8 +448,9 @@ export default function TCGCombatPage() {
                     </div>
                 ) : (
                     matches.map(match => (
-                        <Card key={match.id} className="bg-zinc-950 border-zinc-800 group hover:border-red-900/50 transition-colors duration-300">
-                            <CardHeader className="pb-2">
+                        <Card key={match.id} className="bg-gradient-to-br from-zinc-950 to-zinc-900 border-zinc-800 group hover:border-red-500/50 hover:shadow-[0_0_30px_rgba(239,68,68,0.1)] transition-all duration-300 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <CardHeader className="pb-2 relative z-10">
                                 <div className="flex justify-between items-start">
                                     <Badge variant="outline" className="text-[10px] bg-red-950/20 text-red-500 border-red-500/20">LOBBY OUVERT</Badge>
                                     <p className="text-[10px] text-muted-foreground uppercase font-medium">Duel #{(match.id as string).slice(0, 4)}</p>
@@ -458,15 +462,15 @@ export default function TCGCombatPage() {
                             <CardContent>
                                 <div className="space-y-4">
                                     <div className="flex gap-1">
-                                        {match.host_deck.map((c, i) => (
-                                            <div key={i} className="w-10 h-14 bg-zinc-900 rounded border border-zinc-800  overflow-hidden relative flex-1">
-                                                <img src={c.image} className="w-full h-full object-cover grayscale opacity-50" />
+                                        {[1, 2, 3].map((_, i) => (
+                                            <div key={i} className="w-10 h-14 bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center flex-1 shadow-inner">
+                                                <span className="text-zinc-700 text-xs font-bold">?</span>
                                             </div>
                                         ))}
                                     </div>
                                     <Button
                                         disabled={match.host_id === userId}
-                                        className="w-full bg-zinc-900 text-white hover:bg-white hover:text-black transition-all"
+                                        className="w-full bg-zinc-800 text-white hover:bg-red-600 transition-all duration-300 relative z-10 shadow-lg"
                                         onClick={() => joinMatch(match.id)}
                                     >
                                         {match.host_id === userId ? "Ton salon" : "Rejoindre & Combattre"}
