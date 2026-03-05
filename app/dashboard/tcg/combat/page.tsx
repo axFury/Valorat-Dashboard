@@ -162,20 +162,28 @@ export default function TCGCombatPage() {
             return
         }
         setLoading(true)
-        const res = await fetch(`/api/casino/tcg/matches/${matchId}`, {
-            method: "POST",
-            body: JSON.stringify({ action: "join", guildId, deck: selectedCards })
-        })
-        if (res.ok) {
-            const data = await res.json()
-            setActiveMatch(data)
-            setShowDeckSelector(false)
-            setPendingJoinMatchId(null)
-        } else {
-            const err = await res.json()
-            alert(err.error)
+        try {
+            const res = await fetch(`/api/casino/tcg/matches/${matchId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "join", guildId, deck: selectedCards })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                // Redirect guest immediately
+                setActiveMatch(data)
+                setShowDeckSelector(false)
+                setPendingJoinMatchId(null)
+            } else {
+                const err = await res.json()
+                alert(err.error || "Erreur lors de la tentative de rejoindre.")
+            }
+        } catch (e) {
+            console.error("Join error:", e)
+            alert("Une erreur est survenue.")
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     async function handleAttack(index: number) {
