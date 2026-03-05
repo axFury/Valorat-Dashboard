@@ -42,6 +42,7 @@ export default function TCGCombatPage() {
 
     // UI State
     const [showDeckSelector, setShowDeckSelector] = useState(false)
+    const [pendingJoinMatchId, setPendingJoinMatchId] = useState<string | null>(null) // Nuovo: segue quale match stiamo cercando di unire
     const [selectedCards, setSelectedCards] = useState<string[]>([])
     const [inventory, setInventory] = useState<string[]>([]) // List of card IDs owned
 
@@ -124,8 +125,9 @@ export default function TCGCombatPage() {
                 if (activeMatch && activeMatch.id === updated.id) {
                     setActiveMatch(updated)
                 }
-                // If we were waiting for a match we created, and someone joined
-                if (!activeMatch && updated.status === "active" && (updated.host_id === userId || updated.guest_id === userId)) {
+
+                // If we created a lobby and someone joined, or we joined
+                if (updated.status === "active" && !activeMatch && (updated.host_id === userId || updated.guest_id === userId)) {
                     setActiveMatch(updated)
                 }
             })
@@ -144,8 +146,8 @@ export default function TCGCombatPage() {
         })
         if (res.ok) {
             const data = await res.json()
+            setActiveMatch(data) // Redirige vers l'arène
             setShowDeckSelector(false)
-            // L'état Realtime s'occupera d'afficher le lobby
         } else {
             const err = await res.json()
             alert(err.error)
@@ -155,8 +157,8 @@ export default function TCGCombatPage() {
 
     async function joinMatch(matchId: string) {
         if (selectedCards.length !== 3) {
+            setPendingJoinMatchId(matchId)
             setShowDeckSelector(true)
-            // TODO: Store which match we want to join
             return
         }
         setLoading(true)
@@ -168,6 +170,7 @@ export default function TCGCombatPage() {
             const data = await res.json()
             setActiveMatch(data)
             setShowDeckSelector(false)
+            setPendingJoinMatchId(null)
         } else {
             const err = await res.json()
             alert(err.error)
@@ -195,23 +198,26 @@ export default function TCGCombatPage() {
 
     if (activeMatch) {
         const isHost = userId === activeMatch.host_id
-        const myP = isHost ? { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp, active: activeMatch.state.hostActive }
+        const isWaiting = activeMatch.status === "waiting"
+
+        const myP = isHost ? { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp || [], active: activeMatch.state.hostActive || 0 }
             : { deck: activeMatch.guest_deck!, hp: activeMatch.state.guestHp, active: activeMatch.state.guestActive }
-        const opP = isHost ? { deck: activeMatch.guest_deck!, hp: activeMatch.state.guestHp, active: activeMatch.state.guestActive }
-            : { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp, active: activeMatch.state.hostActive }
+
+        const opP = isWaiting ? null : (isHost ? { deck: activeMatch.guest_deck!, hp: activeMatch.state.guestHp, active: activeMatch.state.guestActive }
+            : { deck: activeMatch.host_deck, hp: activeMatch.state.hostHp, active: activeMatch.state.hostActive })
 
         const myActive = myP.deck[myP.active]
-        const opActive = opP.deck[opP.active]
+        const opActive = opP ? opP.deck[opP.active] : null
         const isMyTurn = activeMatch.state.turn === userId
 
         return (
             <div className="space-y-6 max-w-5xl mx-auto pb-10">
                 <div className="flex items-center justify-between">
                     <Button variant="ghost" onClick={() => setActiveMatch(null)} className="gap-2">
-                        <ArrowLeft className="h-4 w-4" /> Quitter l'arène
+                        <ArrowLeft className="h-4 w-4" /> Retour au lobby
                     </Button>
                     <Badge variant={activeMatch.status === "finished" ? "secondary" : "destructive"} className="animate-pulse">
-                        {activeMatch.status === "finished" ? "MATCH TERMINÉ" : "COMBAT EN COURS"}
+                        {activeMatch.status === "finished" ? "MATCH TERMINÉ" : isWaiting ? "EN ATTENTE D'ADVERSAIRE" : "COMBAT EN COURS"}
                     </Badge>
                 </div>
 
@@ -236,35 +242,47 @@ export default function TCGCombatPage() {
                         <CardContent className="p-0 flex flex-col h-[500px]">
                             {/* Opponent side */}
                             <div className="p-8 flex-1 flex flex-col items-center justify-center gap-4 border-b border-zinc-800/50 bg-indigo-950/20">
-                                <div className="text-center">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Adversaire</p>
-                                    <h3 className="text-2xl font-bold">{opActive.name}</h3>
-                                    <div className="mt-2 w-64 bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-500"
-                                            style={{ width: `${(opP.hp[opP.active] / opActive.maxHp) * 100}%` }}
-                                        />
-                                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white uppercase drop-shadow">
-                                            {opP.hp[opP.active]} / {opActive.maxHp} HP
-                                        </span>
+                                {isWaiting ? (
+                                    <div className="text-center space-y-4">
+                                        <div className="flex justify-center">
+                                            <div className="w-16 h-16 rounded-full border-4 border-t-primary border-zinc-800 animate-spin" />
+                                        </div>
+                                        <p className="text-sm font-medium text-muted-foreground animate-pulse">En attente d'un adversaire...</p>
+                                        <p className="text-[10px] text-zinc-500">Partage le lien ou attends qu'un dresseur rejoigne !</p>
                                     </div>
-                                    <div className="mt-2 flex gap-1 justify-center">
-                                        {opP.deck.map((_, i) => (
-                                            <div key={i} className={`w-2 h-2 rounded-full ${opP.hp[i] > 0 ? "bg-red-500" : "bg-zinc-800"}`} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="w-40 h-40 relative group">
-                                    <div className="absolute inset-0 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all" />
-                                    <img src={opActive.image} className="w-full h-full object-contain relative z-10 drop-shadow-2xl brightness-75 grayscale-[0.2]" />
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className="text-center">
+                                            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Adversaire</p>
+                                            <h3 className="text-2xl font-bold">{opActive?.name}</h3>
+                                            <div className="mt-2 w-64 bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-500"
+                                                    style={{ width: `${(opP!.hp[opP!.active] / opActive!.maxHp) * 100}%` }}
+                                                />
+                                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white uppercase drop-shadow">
+                                                    {opP!.hp[opP!.active]} / {opActive!.maxHp} HP
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 flex gap-1 justify-center">
+                                                {opP!.deck.map((_, i) => (
+                                                    <div key={i} className={`w-2 h-2 rounded-full ${opP!.hp[i] > 0 ? "bg-red-500" : "bg-zinc-800"}`} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="w-40 h-40 relative group">
+                                            <div className="absolute inset-0 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all" />
+                                            <img src={opActive?.image} className="w-full h-full object-contain relative z-10 drop-shadow-2xl brightness-75 grayscale-[0.2]" />
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Player side */}
                             <div className="p-8 flex-1 flex flex-col items-center justify-center gap-4 bg-emerald-950/10">
                                 <div className="w-40 h-40 relative group">
                                     <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
-                                    <img src={myActive.image} className={`w-full h-full object-contain relative z-10 drop-shadow-2xl ${!isMyTurn ? "brightness-75" : "animate-pulse"}`} />
+                                    <img src={myActive.image} className={`w-full h-full object-contain relative z-10 drop-shadow-2xl ${!isMyTurn || isWaiting ? "brightness-75" : "animate-pulse"}`} />
                                 </div>
                                 <div className="text-center">
                                     <h3 className="text-2xl font-bold text-emerald-400">{myActive.name}</h3>
@@ -306,8 +324,10 @@ export default function TCGCombatPage() {
                                     <div className="h-16 flex items-center justify-center text-muted-foreground font-medium animate-pulse bg-zinc-950/50 rounded-xl border border-zinc-800/50">
                                         {activeMatch.status === "finished" ? (
                                             activeMatch.winner_id === userId ? "✨ VICTOIRE !" : "💀 DÉFAITE"
+                                        ) : isWaiting ? (
+                                            "⏳ En attente d'un adversaire..."
                                         ) : (
-                                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> En attente de l'adversaire...</>
+                                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Advesaire en train de réfléchir...</>
                                         )}
                                     </div>
                                 )}
@@ -332,7 +352,10 @@ export default function TCGCombatPage() {
                     <Button variant="outline" size="sm" onClick={fetchMatches}>
                         <RefreshCw className="h-4 w-4 mr-2" /> Actualiser
                     </Button>
-                    <Button className="bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20" onClick={() => setShowDeckSelector(true)}>
+                    <Button className="bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20" onClick={() => {
+                        setPendingJoinMatchId(null)
+                        setShowDeckSelector(true)
+                    }}>
                         <Swords className="h-4 w-4 mr-2" /> Créer un salon
                     </Button>
                 </div>
@@ -342,9 +365,14 @@ export default function TCGCombatPage() {
             {showDeckSelector && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border-zinc-800 bg-zinc-950">
-                        <CardHeader>
-                            <CardTitle>Choisis tes 3 cartes</CardTitle>
-                            <CardDescription>Ton deck doit comporter exactement 3 cartes pour le combat.</CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Choisis tes 3 cartes</CardTitle>
+                                <CardDescription>Prends tes meilleures cartes pour {pendingJoinMatchId ? "rejoindre le combat" : "créer un salon"}.</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setShowDeckSelector(false)}>
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
                         </CardHeader>
                         <CardContent className="flex-1 overflow-y-auto min-h-0 p-6">
                             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -381,7 +409,13 @@ export default function TCGCombatPage() {
                             <p className="text-sm font-medium">Cartes sélectionnées : {selectedCards.length} / 3</p>
                             <div className="flex gap-2">
                                 <Button variant="ghost" onClick={() => setShowDeckSelector(false)}>Annuler</Button>
-                                <Button disabled={selectedCards.length !== 3} onClick={createLobby}>Confirmer & Lancer</Button>
+                                <Button
+                                    disabled={selectedCards.length !== 3 || loading}
+                                    onClick={() => pendingJoinMatchId ? joinMatch(pendingJoinMatchId) : createLobby()}
+                                >
+                                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    {pendingJoinMatchId ? "Rejoindre & Combattre" : "Confirmer & Créer"}
+                                </Button>
                             </div>
                         </div>
                     </Card>
@@ -417,8 +451,12 @@ export default function TCGCombatPage() {
                                             </div>
                                         ))}
                                     </div>
-                                    <Button className="w-full bg-zinc-900 text-white hover:bg-white hover:text-black transition-all" onClick={() => joinMatch(match.id)}>
-                                        Rejoindre & Combattre
+                                    <Button
+                                        disabled={match.host_id === userId}
+                                        className="w-full bg-zinc-900 text-white hover:bg-white hover:text-black transition-all"
+                                        onClick={() => joinMatch(match.id)}
+                                    >
+                                        {match.host_id === userId ? "Ton salon" : "Rejoindre & Combattre"}
                                     </Button>
                                 </div>
                             </CardContent>
