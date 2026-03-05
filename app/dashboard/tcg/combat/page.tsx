@@ -231,7 +231,7 @@ export default function TCGCombatPage() {
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {/* Battle Log */}
-                    <Card className="lg:col-span-1 order-last lg:order-none min-h-[400px] lg:h-[650px] flex flex-col shadow-xl border-zinc-800/50">
+                    <Card className="lg:col-span-1 order-last lg:order-none min-h-[500px] lg:h-[800px] flex flex-col shadow-xl border-zinc-800/50">
                         <CardHeader className="py-3 border-b border-zinc-800/50 flex flex-row items-center justify-between bg-zinc-900/50">
                             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">Journal de Combat</CardTitle>
                             <Send className="h-4 w-4 text-primary opacity-50" />
@@ -247,7 +247,7 @@ export default function TCGCombatPage() {
 
                     {/* Arena */}
                     <Card className="lg:col-span-2 overflow-hidden bg-gradient-to-b from-zinc-900 to-black border-zinc-800 shadow-2xl">
-                        <CardContent className="p-0 flex flex-col min-h-[650px]">
+                        <CardContent className="p-0 flex flex-col min-h-[800px]">
                             {/* Opponent side */}
                             <div className="p-6 sm:p-8 flex-1 flex flex-col items-center justify-center gap-4 border-b border-zinc-800/50 bg-indigo-950/20">
                                 {isWaiting ? (
