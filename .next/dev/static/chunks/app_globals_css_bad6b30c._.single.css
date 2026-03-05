@@ -136,6 +136,7 @@
     --color-gray-400: #99a1af;
     --color-gray-500: #6a7282;
     --color-zinc-300: #d4d4d8;
+    --color-zinc-500: #71717b;
     --color-zinc-600: #52525c;
     --color-zinc-700: #3f3f46;
     --color-zinc-800: #27272a;
@@ -251,6 +252,7 @@
       --color-gray-400: lab(65.9269% -.832707 -8.17473);
       --color-gray-500: lab(47.7841% -.393182 -10.0268);
       --color-zinc-300: lab(84.9837% .601262 -2.17986);
+      --color-zinc-500: lab(47.8878% 1.65477 -5.77283);
       --color-zinc-600: lab(35.1166% 1.78212 -6.1173);
       --color-zinc-700: lab(26.8019% 1.35387 -4.68303);
       --color-zinc-800: lab(15.7305% .613764 -2.16959);
@@ -2364,6 +2366,10 @@
     border-top-color: var(--color-amber-400);
   }
 
+  .border-t-primary {
+    border-top-color: var(--primary);
+  }
+
   .border-t-transparent {
     border-top-color: #0000;
   }
@@ -4006,6 +4012,10 @@
 
   .text-zinc-300 {
     color: var(--color-zinc-300);
+  }
+
+  .text-zinc-500 {
+    color: var(--color-zinc-500);
   }
 
   .uppercase {
