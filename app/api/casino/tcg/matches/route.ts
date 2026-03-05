@@ -102,7 +102,8 @@ export async function POST(req: NextRequest) {
             host_deck: guestDeck,
             status: "waiting",
             state: {
-                log: ["Le salon a été créé. En attente d'un adversaire..."]
+                log: ["Le salon a été créé. En attente d'un adversaire..."],
+                hostEnergy: 1
             }
         }])
         .select()

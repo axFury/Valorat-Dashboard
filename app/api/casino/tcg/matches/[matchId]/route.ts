@@ -48,7 +48,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
     // -----------------------
     if (action === "join") {
         if (match.status !== "waiting") return NextResponse.json({ error: "Ce match est déjà complet ou terminé." }, { status: 400 })
-        if (match.host_id === user.id) return NextResponse.json({ error: "Tu ne peux pas rejoindre ton propre salon." }, { status: 400 })
 
         if (!deck || !Array.isArray(deck) || deck.length !== 3) {
             return NextResponse.json({ error: "Choisis 3 cartes." }, { status: 400 })
@@ -75,12 +74,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
             })
 
             const initialState = {
-                turn: match.host_id,
+                turn: "host",
                 log: ["Le combat commence !", `C'est au tour de l'hôte.`],
                 hostHp: match.host_deck.map((c: any) => c.maxHp),
                 guestHp: guestDeck.map((c: any) => c.maxHp),
                 hostActive: 0,
-                guestActive: 0
+                guestActive: 0,
+                hostEnergy: 3, // 1 base + 2 for the first turn
+                guestEnergy: 1
             }
 
             const { data, error } = await supa
@@ -108,26 +109,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
     // -----------------------
     if (action === "attack") {
         if (match.status !== "active") return NextResponse.json({ error: "Le combat n'est pas actif." }, { status: 400 })
-        if (match.state.turn !== user.id) return NextResponse.json({ error: "Ce n'est pas ton tour." }, { status: 403 })
 
-        const isHost = user.id === match.host_id
-        const attackerCards = isHost ? match.host_deck : match.guest_deck
-        const defenderCards = isHost ? match.guest_deck : match.host_deck
+        let turnRole = match.state.turn
+        if (turnRole !== "host" && turnRole !== "guest") {
+            turnRole = turnRole === match.host_id ? "host" : "guest"
+        }
 
-        const attackerIdx = isHost ? match.state.hostActive : match.state.guestActive
-        const defenderIdx = isHost ? match.state.guestActive : match.state.hostActive
+        const currentTurnUserId = turnRole === "host" ? match.host_id : match.guest_id
+        if (user.id !== currentTurnUserId) return NextResponse.json({ error: "Ce n'est pas ton tour." }, { status: 403 })
+
+        const isHostAttacking = turnRole === "host"
+        const attackerCards = isHostAttacking ? match.host_deck : match.guest_deck
+        const defenderCards = isHostAttacking ? match.guest_deck : match.host_deck
+
+        const attackerIdx = isHostAttacking ? match.state.hostActive : match.state.guestActive
+        const defenderIdx = isHostAttacking ? match.state.guestActive : match.state.hostActive
 
         const attacker = attackerCards[attackerIdx]
         const attack = attacker.attacks[attackIndex]
 
         if (!attack) return NextResponse.json({ error: "Attaque invalide." }, { status: 400 })
 
+        const currentEnergy = isHostAttacking ? match.state.hostEnergy : match.state.guestEnergy
+        if (currentEnergy < attack.cost) {
+            return NextResponse.json({ error: "Énergie insuffisante." }, { status: 400 })
+        }
+
+        let newEnergy = currentEnergy - attack.cost
+        if (attack.cost === 0) {
+            newEnergy += 1 // Basic attack bonus
+        }
+        newEnergy = Math.min(10, newEnergy)
+
         // Accuracy check
         const hit = Math.random() * 100 <= attack.accuracy
         let damage = hit ? attack.damage : 0
 
         const newState = { ...match.state }
-        const defenderHpArray = isHost ? newState.guestHp : newState.hostHp
+        if (isHostAttacking) newState.hostEnergy = newEnergy
+        else newState.guestEnergy = newEnergy
+
+        const defenderHpArray = isHostAttacking ? newState.guestHp : newState.hostHp
         defenderHpArray[defenderIdx] = Math.max(0, defenderHpArray[defenderIdx] - damage)
 
         const logMsg = hit
@@ -161,13 +183,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
                 if (error) return NextResponse.json({ error: error.message }, { status: 500 })
                 return NextResponse.json({ status: "finished", winner: user.id })
             } else {
-                if (isHost) newState.guestActive = nextActive
+                if (isHostAttacking) newState.guestActive = nextActive
                 else newState.hostActive = nextActive
             }
         }
 
         // Switch turn
-        newState.turn = isHost ? match.guest_id : match.host_id
+        newState.turn = isHostAttacking ? "guest" : "host"
+
+        // Grant energy to next player
+        if (newState.turn === "host") {
+            newState.hostEnergy = Math.min(10, (newState.hostEnergy || 0) + 2)
+        } else {
+            newState.guestEnergy = Math.min(10, (newState.guestEnergy || 0) + 2)
+        }
 
         const { error } = await supa
             .from("tcg_matches")
@@ -192,6 +221,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
         }).eq("id", matchId)
 
         return NextResponse.json({ status: "finished" })
+    }
+
+    // -----------------------
+    // ACTION: DELETE
+    // -----------------------
+    if (action === "delete") {
+        if (match.status !== "waiting") return NextResponse.json({ error: "Impossible de supprimer un combat commencé." }, { status: 400 })
+        if (match.host_id !== user.id) return NextResponse.json({ error: "Seul l'hôte peut supprimer le salon." }, { status: 403 })
+
+        await supa.from("tcg_matches").delete().eq("id", matchId)
+        return NextResponse.json({ status: "deleted" })
     }
 
     return NextResponse.json({ error: "Action inconnue" }, { status: 400 })

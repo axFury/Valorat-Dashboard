@@ -24,6 +24,8 @@ type Match = {
         guestHp: number[]
         hostActive: number
         guestActive: number
+        hostEnergy?: number
+        guestEnergy?: number
     }
     winner_id: string | null
 }
@@ -203,6 +205,34 @@ export default function TCGCombatPage() {
         }
     }
 
+    async function deleteLobby() {
+        if (!activeMatch) return
+        if (!confirm("Voulez-vous vraiment supprimer ce salon ?")) return
+        setLoading(true)
+        const res = await fetch(`/api/casino/tcg/matches/${activeMatch.id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "delete", guildId })
+        })
+        if (res.ok) {
+            setActiveMatch(null)
+            fetchMatches()
+        }
+        setLoading(false)
+    }
+
+    async function surrenderMatch() {
+        if (!activeMatch) return
+        if (!confirm("Voulez-vous vraiment abandonner le combat ?")) return
+        setLoading(true)
+        await fetch(`/api/casino/tcg/matches/${activeMatch.id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "surrender", guildId })
+        })
+        setLoading(false)
+    }
+
     /* ─── Renderers ─── */
 
     if (!guildId || !userId) {
@@ -210,25 +240,44 @@ export default function TCGCombatPage() {
     }
 
     if (activeMatch) {
-        const isHost = userId === activeMatch.host_id
+        const isPlayingSelf = activeMatch.host_id === activeMatch.guest_id && activeMatch.status === "active"
+        let turnRole = activeMatch.state?.turn
+        if (turnRole && turnRole !== "host" && turnRole !== "guest") {
+            turnRole = turnRole === activeMatch.host_id ? "host" : "guest"
+        }
+
+        const isHost = isPlayingSelf ? turnRole === "host" : userId === activeMatch.host_id
         const isWaiting = activeMatch.status === "waiting"
 
-        const myP = isHost ? { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0 }
-            : { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0 }
+        const myP = isHost ? { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0, energy: activeMatch.state?.hostEnergy || 0 }
+            : { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0, energy: activeMatch.state?.guestEnergy || 0 }
 
-        const opP = isWaiting ? null : (isHost ? { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0 }
-            : { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0 })
+        const opP = isWaiting ? null : (isHost ? { deck: activeMatch.guest_deck || [], hp: activeMatch.state?.guestHp || [], active: activeMatch.state?.guestActive || 0, energy: activeMatch.state?.guestEnergy || 0 }
+            : { deck: activeMatch.host_deck || [], hp: activeMatch.state?.hostHp || [], active: activeMatch.state?.hostActive || 0, energy: activeMatch.state?.hostEnergy || 0 })
 
         const myActive = myP.deck[myP.active]
         const opActive = opP ? opP.deck[opP.active] : null
-        const isMyTurn = activeMatch.state?.turn === userId
+
+        const isMyTurn = isPlayingSelf ? true : ((turnRole === "host" && userId === activeMatch.host_id) || (turnRole === "guest" && userId === activeMatch.guest_id))
 
         return (
             <div className="space-y-6 max-w-5xl mx-auto pb-10">
                 <div className="flex items-center justify-between">
-                    <Button variant="ghost" onClick={() => setActiveMatch(null)} className="gap-2">
-                        <ArrowLeft className="h-4 w-4" /> Retour au lobby
-                    </Button>
+                    <div className="flex gap-2">
+                        {activeMatch.status === "waiting" && isHost && (
+                            <Button variant="destructive" size="sm" onClick={deleteLobby} disabled={loading}>
+                                Supprimer le salon
+                            </Button>
+                        )}
+                        {activeMatch.status === "active" && (
+                            <Button variant="destructive" size="sm" onClick={surrenderMatch} disabled={loading}>
+                                Abandonner
+                            </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => setActiveMatch(null)} className="gap-2">
+                            <ArrowLeft className="h-4 w-4" /> Retour
+                        </Button>
+                    </div>
                     <Badge variant={activeMatch.status === "finished" ? "secondary" : "destructive"} className="animate-pulse">
                         {activeMatch.status === "finished" ? "MATCH TERMINÉ" : isWaiting ? "EN ATTENTE D'ADVERSAIRE" : "COMBAT EN COURS"}
                     </Badge>
@@ -282,6 +331,11 @@ export default function TCGCombatPage() {
                                                     <div key={i} className={`w-1.5 h-1.5 rounded-full ${opP!.hp[i] > 0 ? "bg-red-500" : "bg-zinc-800"}`} />
                                                 ))}
                                             </div>
+                                            <div className="mt-3 flex gap-0.5 justify-center">
+                                                {[...Array(10)].map((_, i) => (
+                                                    <div key={i} className={`w-3 h-1.5 rounded-sm ${i < opP!.energy ? "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]" : "bg-zinc-800"}`} />
+                                                ))}
+                                            </div>
                                         </div>
                                         <div className="w-32 h-32 sm:w-48 sm:h-48 relative group transition-transform duration-700 hover:scale-105">
                                             <div className="absolute inset-0 bg-red-500/20 rounded-full blur-3xl group-hover:bg-red-500/30 transition-all duration-500" />
@@ -313,25 +367,40 @@ export default function TCGCombatPage() {
                                             <div key={i} className={`w-1.5 h-1.5 rounded-full ${myP.hp[i] > 0 ? "bg-emerald-500" : "bg-zinc-800 shadow-none"} ${i === myP.active ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""}`} />
                                         ))}
                                     </div>
+                                    <div className="mt-3 flex gap-0.5 justify-center">
+                                        {[...Array(10)].map((_, i) => (
+                                            <div key={i} className={`w-3 h-1.5 rounded-sm ${i < myP.energy ? "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]" : "bg-zinc-800"}`} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Controls */}
                             <div className="bg-zinc-900 border-t border-zinc-800 p-4 sm:p-6 mt-auto">
                                 {isMyTurn && activeMatch.status === "active" ? (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {myActive.attacks.map((atk: any, i: number) => (
-                                            <Button
-                                                key={i}
-                                                onClick={() => handleAttack(i)}
-                                                variant={i === 0 ? "default" : "secondary"}
-                                                className={`h-16 flex flex-col items-center justify-center gap-0.5 group relative overflow-hidden transition-all duration-300 hover:scale-[1.02] ${i === 0 ? "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-[0_0_20px_rgba(220,38,38,0.4)] border-none" : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}`}
-                                            >
-                                                <span className={`font-bold relative z-10 ${i === 0 ? "text-white" : "text-zinc-200 group-hover:text-white"}`}>{atk.name}</span>
-                                                <span className={`text-[10px] relative z-10 ${i === 0 ? "text-red-100" : "text-zinc-400"}`}>{atk.damage} Dmg • {atk.accuracy}% Précision</span>
-                                                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                                            </Button>
-                                        ))}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+                                        {myActive.attacks.map((atk: any, i: number) => {
+                                            const canAfford = myP.energy >= atk.cost
+                                            return (
+                                                <Button
+                                                    key={i}
+                                                    disabled={!canAfford}
+                                                    onClick={() => handleAttack(i)}
+                                                    variant={i === 0 ? "default" : (i === 1 ? "secondary" : "destructive")}
+                                                    className={`h-16 flex flex-col items-center justify-center gap-0.5 group relative overflow-hidden transition-all duration-300 hover:scale-[1.02] 
+                                                    ${!canAfford ? "opacity-30 cursor-not-allowed grayscale" :
+                                                            (i === 2 ? "bg-gradient-to-r from-purple-700 to-indigo-600 hover:from-purple-600 hover:to-indigo-500 shadow-[0_0_20px_rgba(124,58,237,0.3)] border-none" :
+                                                                (i === 0 ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)] border-none" :
+                                                                    "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"))}`}
+                                                >
+                                                    <span className="absolute top-1 left-2 text-[10px] text-yellow-400 font-black drop-shadow-md bg-black/50 px-1 rounded">⚡ {atk.cost}</span>
+                                                    {i === 0 && <span className="absolute top-1 right-2 text-[10px] text-emerald-400 font-black drop-shadow-md bg-black/50 px-1 rounded">+1 ⚡</span>}
+                                                    <span className={`font-bold relative z-10 ${i === 2 || i === 0 ? "text-white" : "text-zinc-200 group-hover:text-white"}`}>{atk.name}</span>
+                                                    <span className={`text-[10px] relative z-10 ${i === 2 ? "text-purple-200" : (i === 0 ? "text-emerald-100" : "text-zinc-400")}`}>{atk.damage} Dmg • {atk.accuracy}% P.</span>
+                                                    <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                                </Button>
+                                            )
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="h-16 flex items-center justify-center text-muted-foreground font-medium animate-pulse bg-zinc-950/50 rounded-xl border border-zinc-800/50">
@@ -469,11 +538,10 @@ export default function TCGCombatPage() {
                                         ))}
                                     </div>
                                     <Button
-                                        disabled={match.host_id === userId}
-                                        className="w-full bg-zinc-800 text-white hover:bg-red-600 transition-all duration-300 relative z-10 shadow-lg"
+                                        className={`w-full text-white transition-all duration-300 relative z-10 shadow-lg ${match.host_id === userId ? "bg-indigo-600 hover:bg-indigo-500" : "bg-zinc-800 hover:bg-red-600"}`}
                                         onClick={() => joinMatch(match.id)}
                                     >
-                                        {match.host_id === userId ? "Ton salon" : "Rejoindre & Combattre"}
+                                        {match.host_id === userId ? "Rejoindre (Test local)" : "Rejoindre & Combattre"}
                                     </Button>
                                 </div>
                             </CardContent>
