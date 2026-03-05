@@ -17,6 +17,7 @@
   "/api/casino/tcg/collection/route": "/api/casino/tcg/collection",
   "/api/casino/tcg/matches/[matchId]/route": "/api/casino/tcg/matches/[matchId]",
   "/api/casino/tcg/matches/route": "/api/casino/tcg/matches",
+  "/api/casino/tcg/ranking/route": "/api/casino/tcg/ranking",
   "/api/cmd/route": "/api/cmd",
   "/api/guilds/[guildId]/channels/route": "/api/guilds/[guildId]/channels",
   "/api/guilds/[guildId]/members/[userId]/route": "/api/guilds/[guildId]/members/[userId]",

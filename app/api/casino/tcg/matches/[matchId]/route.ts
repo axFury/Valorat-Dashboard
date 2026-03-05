@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { CARDS } from "@/lib/card-catalog"
 import { generateCardStats } from "@/lib/tcg-combat"
+import { calculateElo } from "@/lib/tcg-elo"
 
 export const dynamic = "force-dynamic"
 
@@ -172,12 +173,44 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
 
             if (nextActive === -1) {
                 // GAME OVER
+                let eloMessage = ""
+                // If not self-playing, update ELO
+                if (match.host_id !== match.guest_id) {
+                    const { data: pWin } = await supa.from("tcg_profiles").select("*").eq("user_id", user.id).eq("guild_id", guildId).single()
+                    const { data: pLose } = await supa.from("tcg_profiles").select("*").eq("user_id", isHostAttacking ? match.guest_id : match.host_id).eq("guild_id", guildId).single()
+
+                    const wTrophies = pWin?.trophies || 0
+                    const lTrophies = pLose?.trophies || 0
+
+                    const isPyrrhic = attackerCards.filter((c: any, i: number) => (isHostAttacking ? newState.hostHp[i] : newState.guestHp[i]) > 0).length === 1
+                        && (isHostAttacking ? Math.max(...newState.hostHp) : Math.max(...newState.guestHp)) < attacker.maxHp * 0.25
+
+                    const diffs = calculateElo(wTrophies, lTrophies, isPyrrhic)
+
+                    // Upsert Winner
+                    await supa.from("tcg_profiles").upsert({
+                        user_id: user.id, guild_id: guildId,
+                        trophies: wTrophies + diffs.winnerGain,
+                        username: user.global_name || user.username,
+                        wins: (pWin?.wins || 0) + 1
+                    })
+
+                    // Upsert Loser
+                    await supa.from("tcg_profiles").upsert({
+                        user_id: isHostAttacking ? match.guest_id : match.host_id, guild_id: guildId,
+                        trophies: Math.max(0, lTrophies - diffs.loserLoss),
+                        losses: (pLose?.losses || 0) + 1
+                    })
+
+                    eloMessage = ` | 🏆 +${diffs.winnerGain} / -${diffs.loserLoss}`
+                }
+
                 const { error } = await supa
                     .from("tcg_matches")
                     .update({
                         status: "finished",
                         winner_id: user.id,
-                        state: { ...newState, log: [`FIN DU COMBAT ! Victoire de ${user.global_name || user.username} !`, ...newState.log] }
+                        state: { ...newState, log: [`FIN DU COMBAT ! Victoire de ${user.global_name || user.username} !${eloMessage}`, ...newState.log] }
                     })
                     .eq("id", matchId)
                 if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -214,10 +247,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ mat
         if (match.status !== "active") return NextResponse.json({ error: "Combat non actif." }, { status: 400 })
         const winnerId = user.id === match.host_id ? match.guest_id : match.host_id
 
+        let eloMessage = ""
+        // If not self-playing, surrender penalty
+        if (match.host_id !== match.guest_id) {
+            const { data: pLose } = await supa.from("tcg_profiles").select("*").eq("user_id", user.id).eq("guild_id", guildId).single()
+            const { data: pWin } = await supa.from("tcg_profiles").select("*").eq("user_id", winnerId).eq("guild_id", guildId).single()
+
+            const wTrophies = pWin?.trophies || 0
+            const lTrophies = pLose?.trophies || 0
+
+            // Surrender gives basic win points, but punishes loser heavier initially mapped
+            const penalty = Math.min(20, lTrophies)
+
+            await supa.from("tcg_profiles").upsert({
+                user_id: winnerId, guild_id: guildId, trophies: wTrophies + 15, wins: (pWin?.wins || 0) + 1
+            })
+            await supa.from("tcg_profiles").upsert({
+                user_id: user.id, guild_id: guildId, trophies: Math.max(0, lTrophies - penalty), losses: (pLose?.losses || 0) + 1, username: user.global_name || user.username
+            })
+            eloMessage = ` | 🏆 +15 / -${penalty}`
+        }
+
         await supa.from("tcg_matches").update({
             status: "finished",
             winner_id: winnerId,
-            state: { ...match.state, log: [`Abandon de ${user.global_name || user.username}.`, ...match.state.log] }
+            state: { ...match.state, log: [`Abandon de ${user.global_name || user.username}.${eloMessage}`, ...match.state.log] }
         }).eq("id", matchId)
 
         return NextResponse.json({ status: "finished" })

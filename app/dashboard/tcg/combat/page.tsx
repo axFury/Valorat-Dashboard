@@ -41,6 +41,8 @@ export default function TCGCombatPage() {
     const [loading, setLoading] = useState(true)
     const [matches, setMatches] = useState<Match[]>([])
     const [activeMatch, setActiveMatch] = useState<Match | null>(null)
+    const [leaderboard, setLeaderboard] = useState<any[]>([])
+    const [myProfile, setMyProfile] = useState<any>(null)
 
     // UI State
     const [showDeckSelector, setShowDeckSelector] = useState(false)
@@ -85,14 +87,28 @@ export default function TCGCombatPage() {
         }
     }, [guildId])
 
+    const fetchRanking = useCallback(async () => {
+        if (!guildId || !userId) return
+        const res = await fetch(`/api/casino/tcg/ranking?guildId=${guildId}&userId=${userId}`)
+        if (res.ok) {
+            const data = await res.json()
+            setLeaderboard(data.topPlayers)
+            setMyProfile(data.myProfile)
+        }
+    }, [guildId, userId])
+
     useEffect(() => {
-        if (guildId) {
+        if (guildId && userId) {
+            setLoading(true)
+            Promise.all([fetchMatches(), fetchCollection(), fetchRanking()]).finally(() => setLoading(false))
+        } else if (guildId && !userId) {
+            // Waiting for userId to fetch ranking
             setLoading(true)
             Promise.all([fetchMatches(), fetchCollection()]).finally(() => setLoading(false))
         } else {
             setLoading(false)
         }
-    }, [guildId, fetchMatches, fetchCollection])
+    }, [guildId, userId, fetchMatches, fetchCollection, fetchRanking])
 
     /* ─── Realtime ─── */
     useEffect(() => {
@@ -428,7 +444,19 @@ export default function TCGCombatPage() {
                     <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
                         Arène de Combat TCG
                     </h1>
-                    <p className="text-muted-foreground">Affronte d'autres dresseurs en duel.</p>
+                    <p className="text-muted-foreground flex items-center gap-2 mt-1">
+                        Affronte d'autres dresseurs et grimpe dans le ladder.
+                        {myProfile && (
+                            <Badge variant="outline" className="ml-2 border-yellow-500/50 text-yellow-500 bg-yellow-500/10">
+                                🏆 {myProfile.trophies || 0}
+                            </Badge>
+                        )}
+                        {myProfile && (
+                            <span className="text-xs text-zinc-500">
+                                ({myProfile.wins || 0}V - {myProfile.losses || 0}D)
+                            </span>
+                        )}
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={fetchMatches}>
@@ -507,47 +535,105 @@ export default function TCGCombatPage() {
                 </div>
             )}
 
-            {/* Lobbies List */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {matches.length === 0 ? (
-                    <div className="md:col-span-2 lg:col-span-3 py-20 bg-zinc-900/40 rounded-3xl border border-dashed border-zinc-800 flex flex-col items-center justify-center text-muted-foreground">
-                        <Users className="h-10 w-10 mb-4 opacity-20" />
-                        <p>Aucun salon ouvert pour le moment.</p>
-                        <Button variant="link" onClick={() => setShowDeckSelector(true)}>Sois le premier à relever le défi !</Button>
-                    </div>
-                ) : (
-                    matches.map(match => (
-                        <Card key={match.id} className="bg-gradient-to-br from-zinc-950 to-zinc-900 border-zinc-800 group hover:border-red-500/50 hover:shadow-[0_0_30px_rgba(239,68,68,0.1)] transition-all duration-300 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <CardHeader className="pb-2 relative z-10">
-                                <div className="flex justify-between items-start">
-                                    <Badge variant="outline" className="text-[10px] bg-red-950/20 text-red-500 border-red-500/20">LOBBY OUVERT</Badge>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-medium">Duel #{(match.id as string).slice(0, 4)}</p>
-                                </div>
-                                <CardTitle className="text-lg mt-2 flex items-center gap-2">
-                                    Hôte: {match.host_id.slice(0, 8)}...
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    <div className="flex gap-1">
-                                        {[1, 2, 3].map((_, i) => (
-                                            <div key={i} className="w-10 h-14 bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center flex-1 shadow-inner">
-                                                <span className="text-zinc-700 text-xs font-bold">?</span>
+            {/* Lobbies and Leaderboard Layout */}
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+                {/* Lobbies List - 3/4 width on large screens */}
+                <div className="xl:col-span-3">
+                    <h2 className="text-xl font-bold mt-2 mb-4 flex items-center gap-2">
+                        <Swords className="h-5 w-5 text-red-500" /> Salons Ouverts
+                    </h2>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {matches.length === 0 ? (
+                            <div className="md:col-span-2 lg:col-span-3 py-20 bg-zinc-900/40 rounded-3xl border border-dashed border-zinc-800 flex flex-col items-center justify-center text-muted-foreground">
+                                <Users className="h-10 w-10 mb-4 opacity-20" />
+                                <p>Aucun salon ouvert pour le moment.</p>
+                                <Button variant="link" onClick={() => setShowDeckSelector(true)}>Sois le premier à relever le défi !</Button>
+                            </div>
+                        ) : (
+                            matches.map(match => (
+                                <Card key={match.id} className="bg-gradient-to-br from-zinc-950 to-zinc-900 border-zinc-800 group hover:border-red-500/50 hover:shadow-[0_0_30px_rgba(239,68,68,0.1)] transition-all duration-300 relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <CardHeader className="pb-2 relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <Badge variant="outline" className="text-[10px] bg-red-950/20 text-red-500 border-red-500/20">LOBBY OUVERT</Badge>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-medium">Duel #{(match.id as string).slice(0, 4)}</p>
+                                        </div>
+                                        <CardTitle className="text-lg mt-2 flex items-center gap-2">
+                                            Hôte: {match.host_id.slice(0, 8)}...
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3].map((_, i) => (
+                                                    <div key={i} className="w-10 h-14 bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center flex-1 shadow-inner">
+                                                        <span className="text-zinc-700 text-xs font-bold">?</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-                                    <Button
-                                        className={`w-full text-white transition-all duration-300 relative z-10 shadow-lg ${match.host_id === userId ? "bg-indigo-600 hover:bg-indigo-500" : "bg-zinc-800 hover:bg-red-600"}`}
-                                        onClick={() => joinMatch(match.id)}
-                                    >
-                                        {match.host_id === userId ? "Rejoindre (Test local)" : "Rejoindre & Combattre"}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))
-                )}
+                                            <Button
+                                                className={`w-full text-white transition-all duration-300 relative z-10 shadow-lg ${match.host_id === userId ? "bg-indigo-600 hover:bg-indigo-500" : "bg-zinc-800 hover:bg-red-600"}`}
+                                                onClick={() => joinMatch(match.id)}
+                                            >
+                                                {match.host_id === userId ? "Rejoindre (Test local)" : "Rejoindre & Combattre"}
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Leaderboard - 1/4 width on large screens */}
+                <div className="xl:col-span-1">
+                    <Card className="border-zinc-800 bg-zinc-950/50 backdrop-blur-md shadow-2xl h-full">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Trophy className="h-5 w-5 text-yellow-500" />
+                                Classement Élo
+                            </CardTitle>
+                            <CardDescription>Les meilleurs joueurs du serveur.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 p-4 pt-0">
+                            {leaderboard.length === 0 ? (
+                                <p className="text-muted-foreground text-sm text-center py-4">Aucun joueur classé.</p>
+                            ) : (
+                                leaderboard.map((p, i) => {
+                                    const winrate = p.wins + p.losses > 0
+                                        ? Math.round((p.wins / (p.wins + p.losses)) * 100)
+                                        : 0
+
+                                    return (
+                                        <div key={p.user_id} className={`flex items-center justify-between p-3 rounded-lg border ${p.user_id === userId ? "bg-primary/10 border-primary shadow-[0_0_15px_rgba(220,38,38,0.15)]" : "bg-zinc-900/50 border-zinc-800"}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-yellow-500 text-yellow-950" :
+                                                        i === 1 ? "bg-zinc-300 text-zinc-800" :
+                                                            i === 2 ? "bg-amber-700 text-white" :
+                                                                "bg-zinc-800 text-zinc-400"
+                                                    }`}>
+                                                    {i + 1}
+                                                </div>
+                                                <div>
+                                                    <p className={`text-sm font-bold ${p.user_id === userId ? "text-primary" : "text-zinc-200"}`}>
+                                                        {p.username || "Inconnu"}
+                                                    </p>
+                                                    <p className="text-[10px] text-zinc-500 font-medium">WR: {winrate}%</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-black text-yellow-500 flex items-center justify-end gap-1">
+                                                    {p.trophies} 🏆
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     )
