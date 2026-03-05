@@ -295,6 +295,18 @@ export async function POST(req: NextRequest) {
             return res
         }
 
+        // -----------------------
+        // ACTION: DEBUG REVEAL (Hidden tool for testing)
+        // -----------------------
+        if (action === "debug_reveal") {
+            // Only returns the board, doesn't change game state
+            return NextResponse.json({
+                board: game.board,
+                revealed: game.revealed
+            })
+        }
+
+
         return NextResponse.json({ error: "Action inconnue" }, { status: 400 })
     } catch (e: any) {
         console.error("Mines POST error:", e)
