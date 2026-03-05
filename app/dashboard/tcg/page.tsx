@@ -1,13 +1,12 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { createClient } from "@supabase/supabase-js"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { CARDS, RARITIES, COLLECTIONS, TOTAL_UNIQUE } from "@/lib/card-catalog"
-import { Loader2, Search, Filter, LayersIcon, Trophy, ChevronDown } from "lucide-react"
+import { Loader2, Search, RotateCcw } from "lucide-react"
 
 /* ─── Types ─── */
 type RarityKey = "COMMON" | "RARE" | "EPIC" | "LEGENDARY" | "MYTHIC"
@@ -29,6 +28,7 @@ const RARITY_EMOJI: Record<RarityKey, string> = {
 
 export default function TCGPage() {
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [guildId, setGuildId] = useState<string | null>(null)
     const [ownedCards, setOwnedCards] = useState<Record<string, number>>({}) // card_id -> count
 
@@ -40,27 +40,29 @@ export default function TCGPage() {
     const [onlyDuplicates, setOnlyDuplicates] = useState(false)
     const [sortMode, setSortMode] = useState<SortMode>("rarity_desc")
 
-    const supa = useMemo(() => createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    ), [])
-
     const fetchCollection = useCallback(async (gid: string) => {
         setLoading(true)
-        const { data } = await supa
-            .from("tcg_user_cards")
-            .select("card_id")
-            .eq("guild_id", gid)
-
-        const counts: Record<string, number> = {}
-        if (data) {
-            for (const row of data) {
-                counts[row.card_id] = (counts[row.card_id] || 0) + 1
+        setError(null)
+        try {
+            // Calls our secure API that filters by the authenticated Discord user
+            const res = await fetch(`/api/casino/tcg/collection?guildId=${gid}`)
+            if (res.status === 401) {
+                setError("Tu n'es pas connecté. Reconnecte-toi via Discord.")
+                setLoading(false)
+                return
             }
+            if (!res.ok) {
+                setError("Erreur lors du chargement de ta collection.")
+                setLoading(false)
+                return
+            }
+            const data = await res.json()
+            setOwnedCards(data.counts || {})
+        } catch {
+            setError("Erreur réseau.")
         }
-        setOwnedCards(counts)
         setLoading(false)
-    }, [supa])
+    }, [])
 
     useEffect(() => {
         const gid = typeof window !== "undefined" ? localStorage.getItem("selected_guild") : null
@@ -117,6 +119,15 @@ export default function TCGPage() {
         )
     }
 
+    if (error) {
+        return (
+            <div className="flex h-96 flex-col items-center justify-center gap-4 text-red-400">
+                <p className="text-lg font-semibold">{error}</p>
+                <Button variant="outline" onClick={() => guildId && fetchCollection(guildId)}>Réessayer</Button>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -128,8 +139,9 @@ export default function TCGPage() {
                     <p className="text-muted-foreground mt-1">Explore et trie tes cartes collectionnées.</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => guildId && fetchCollection(guildId)}>
-                    <Loader2 className="mr-2 h-3 w-3" /> Actualiser
+                    <RotateCcw className="mr-2 h-3 w-3" /> Actualiser
                 </Button>
+
             </div>
 
             {/* Stats row */}
