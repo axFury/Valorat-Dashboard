@@ -23,11 +23,14 @@ async function getDiscordUser(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { matchId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ matchId: string }> | { matchId: string } }) {
     const user = await getDiscordUser(req)
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
-    const { matchId } = params
+    // Next.js 15+ compatibility: await params if it's a promise
+    const resolvedParams = params instanceof Promise ? await params : params
+    const { matchId } = resolvedParams
+
     const body = await req.json()
     const { action, guildId, deck, attackIndex } = body
 
@@ -63,36 +66,42 @@ export async function POST(req: NextRequest, { params }: { params: { matchId: st
             if (!ownedIds.includes(cid)) return NextResponse.json({ error: "Tu ne possèdes pas toutes ces cartes." }, { status: 400 })
         }
 
-        const guestDeck = deck.map(cid => {
-            const cardModel = CARDS.find(c => c.id === cid)
-            const stats = generateCardStats(cardModel!)
-            return { ...cardModel, hp: stats.hp, maxHp: stats.hp, attacks: stats.attacks }
-        })
-
-        const initialState = {
-            turn: match.host_id,
-            log: ["Le combat commence !", `C'est au tour de l'hôte.`],
-            hostHp: match.host_deck.map((c: any) => c.maxHp),
-            guestHp: guestDeck.map((c: any) => c.maxHp),
-            hostActive: 0,
-            guestActive: 0
-        }
-
-        const { data, error } = await supa
-            .from("tcg_matches")
-            .update({
-                guest_id: user.id,
-                guest_deck: guestDeck,
-                status: "active",
-                state: initialState
+        try {
+            const guestDeck = deck.map(cid => {
+                const cardModel = CARDS.find(c => c.id === cid)
+                if (!cardModel) throw new Error(`Carte ${cid} introuvable`)
+                const stats = generateCardStats(cardModel)
+                return { ...cardModel, hp: stats.hp, maxHp: stats.hp, attacks: stats.attacks }
             })
-            .eq("id", matchId)
-            .select()
-            .single()
 
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-        return NextResponse.json(data)
+            const initialState = {
+                turn: match.host_id,
+                log: ["Le combat commence !", `C'est au tour de l'hôte.`],
+                hostHp: match.host_deck.map((c: any) => c.maxHp),
+                guestHp: guestDeck.map((c: any) => c.maxHp),
+                hostActive: 0,
+                guestActive: 0
+            }
+
+            const { data, error } = await supa
+                .from("tcg_matches")
+                .update({
+                    guest_id: user.id,
+                    guest_deck: guestDeck,
+                    status: "active",
+                    state: initialState
+                })
+                .eq("id", matchId)
+                .select()
+                .single()
+
+            if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+            return NextResponse.json(data)
+        } catch (e: any) {
+            return NextResponse.json({ error: e.message || "Erreur deck" }, { status: 400 })
+        }
     }
+
 
     // -----------------------
     // ACTION: ATTACK
