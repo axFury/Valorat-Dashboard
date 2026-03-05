@@ -13,6 +13,7 @@
   "/api/casino/roulette/route": "app/api/casino/roulette/route.js",
   "/api/casino/shop/route": "app/api/casino/shop/route.js",
   "/api/casino/slots/route": "app/api/casino/slots/route.js",
+  "/api/casino/tcg/booster/route": "app/api/casino/tcg/booster/route.js",
   "/api/cmd/route": "app/api/cmd/route.js",
   "/api/guilds/[guildId]/channels/route": "app/api/guilds/[guildId]/channels/route.js",
   "/api/guilds/[guildId]/members/[userId]/route": "app/api/guilds/[guildId]/members/[userId]/route.js",

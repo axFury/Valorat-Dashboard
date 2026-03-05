@@ -101,6 +101,11 @@ export default function EconomyPage() {
     const [buyMsg, setBuyMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [myInventory, setMyInventory] = useState<any[]>([])
 
+    // Boosters
+    const [boosterData, setBoosterData] = useState<{ freeRemaining: number, boosterInventory: Record<string, number>, dailyLimit: number }>({ freeRemaining: 0, boosterInventory: {}, dailyLimit: 2 })
+    const [openingBooster, setOpeningBooster] = useState(false)
+    const [openedCards, setOpenedCards] = useState<any[]>([])
+
     const supa = useMemo(
         () => createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -239,12 +244,23 @@ export default function EconomyPage() {
         } catch { }
     }, [])
 
+    const fetchBoosterData = useCallback(async (gid: string) => {
+        try {
+            const res = await fetch(`/api/casino/tcg/booster?guildId=${gid}`)
+            if (res.ok) {
+                const data = await res.json()
+                setBoosterData(data)
+            }
+        } catch { }
+    }, [])
+
     useEffect(() => {
         if (guildId) {
             fetchBalance(guildId)
             fetchMyInventory(guildId)
+            fetchBoosterData(guildId)
         }
-    }, [guildId, fetchBalance, fetchMyInventory])
+    }, [guildId, fetchBalance, fetchMyInventory, fetchBoosterData])
 
     // Buy
     async function buyItem(itemKey: string) {
@@ -277,6 +293,38 @@ export default function EconomyPage() {
     }
     function userAvatar(userId: string) {
         return profiles.get(userId)?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png"
+    }
+
+    async function handleOpenBooster(itemKey: string | null = null, useFree: boolean = false) {
+        if (!guildId || openingBooster) return
+        setOpeningBooster(true)
+        setBuyMsg(null)
+        setOpenedCards([])
+
+        try {
+            const res = await fetch("/api/casino/tcg/booster", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ guildId, itemKey, useFree })
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setBuyMsg({ text: data.error || "Erreur lors de l'ouverture du booster", ok: false })
+            } else {
+                setOpenedCards(data.cards)
+                if (data.balance !== undefined && data.balance !== null) {
+                    setBalance(data.balance)
+                }
+                fetchBoosterData(guildId)
+                fetchMyInventory(guildId)
+            }
+        } catch {
+            setBuyMsg({ text: "Erreur réseau", ok: false })
+        }
+        setOpeningBooster(false)
+        if (!itemKey) {
+            setTimeout(() => setBuyMsg(null), 4000)
+        }
     }
 
     if (loading) {
@@ -335,7 +383,7 @@ export default function EconomyPage() {
             )}
 
             <Tabs defaultValue="wallet" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="wallet" className="gap-2">
                         <Wallet className="h-4 w-4" />
                         <span className="hidden sm:inline">Portefeuille</span>
@@ -352,231 +400,121 @@ export default function EconomyPage() {
                         <Ticket className="h-4 w-4" />
                         <span className="hidden sm:inline">Loterie</span>
                     </TabsTrigger>
-                </TabsList>
+                    <TabsTrigger value="boosters" className="gap-2">
+                        <Package className="h-4 w-4" />
+                        <span className="hidden sm:inline">Boosters</span>
+                    </TabsTrigger>
+            </TabsList>
 
-                {/* ═══════════════ PORTEFEUILLE ═══════════════ */}
-                <TabsContent value="wallet" className="mt-6 space-y-6">
-                    {/* Stats cards */}
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Card className="border-border bg-card">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-sm font-medium">Économie totale</CardTitle>
-                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold text-emerald-500">{fmtEcus(totalEconomy.totalBalance)} pq</p>
-                                <p className="text-xs text-muted-foreground">{totalEconomy.walletCount} portefeuilles</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border bg-card">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-sm font-medium">Prêts en cours</CardTitle>
-                                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold text-amber-500">{fmtEcus(totalEconomy.totalLoans)} pq</p>
-                                <p className="text-xs text-muted-foreground">Crédits actifs</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border bg-card">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-sm font-medium">Achats récents</CardTitle>
-                                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{recentPurchases.length}</p>
-                                <p className="text-xs text-muted-foreground">Dernières transactions</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        {/* Top richesses */}
-                        <Card className="border-border bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Trophy className="h-5 w-5 text-yellow-500" />
-                                    Top Richesses
-                                </CardTitle>
-                                <CardDescription>Les joueurs les plus riches du serveur</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {topWallets.length === 0 ? (
-                                    <p className="py-8 text-center text-muted-foreground">Aucune donnée</p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {topWallets.slice(0, 10).map((w, i) => (
-                                            <div key={w.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
-                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                            : "bg-primary/10 text-primary"
-                                                    }`}>
-                                                    #{i + 1}
-                                                </div>
-                                                <Avatar className="h-10 w-10 border-2 border-border">
-                                                    <AvatarImage src={userAvatar(w.user_id)} />
-                                                    <AvatarFallback>{userName(w.user_id)[0]?.toUpperCase()}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-foreground truncate">{userName(w.user_id)}</p>
-                                                    <p className="text-sm text-muted-foreground">{fmtEcus(w.balance)} pq</p>
-                                                </div>
-                                                {w.loan_amount > 0 && (
-                                                    <Badge variant="outline" className="text-amber-500 border-amber-500/30 shrink-0">
-                                                        Prêt: {fmtEcus(w.loan_amount)}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Historique achats */}
-                        <Card className="border-border bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Clock className="h-5 w-5 text-blue-500" />
-                                    Achats récents
-                                </CardTitle>
-                                <CardDescription>Dernières transactions boutique</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {recentPurchases.length === 0 ? (
-                                    <p className="py-8 text-center text-muted-foreground">Aucun achat</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                                        {recentPurchases.map((p, i) => {
-                                            const item = SHOP_CATALOG[p.item_key]
-                                            const date = new Date(p.purchased_at)
-                                            return (
-                                                <div key={p.id || i} className="flex items-center gap-3 rounded-xl bg-muted/30 p-3">
-                                                    <span className="text-xl">{item?.emoji || "📦"}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-medium text-foreground text-sm truncate">{p.item_name}</p>
-                                                        <p className="text-xs text-muted-foreground">{userName(p.user_id)}</p>
-                                                    </div>
-                                                    <div className="text-right shrink-0">
-                                                        <p className="text-sm font-semibold text-red-400">-{fmtEcus(p.price)} pq</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                {/* ═══════════════ BOUTIQUE ═══════════════ */}
-                <TabsContent value="shop" className="mt-6 space-y-6">
-                    {/* Category selector */}
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(CATEGORIES).map(([key, cat]) => (
-                            <button
-                                key={key}
-                                onClick={() => setSelectedCategory(key)}
-                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${selectedCategory === key
-                                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                            >
-                                <span>{cat.emoji}</span>
-                                {cat.name}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Items grid */}
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {catItems.map(([key, item]) => (
-                            <Card key={key} className="border-border bg-card transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
-                                <CardContent className="p-5">
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
-                                            {item.emoji}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-foreground">{item.name}</h3>
-                                            <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
-                                            <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                                                    {fmtEcus(item.price)} pq
-                                                </Badge>
-                                                {item.durationHours && (
-                                                    <Badge variant="outline" className="text-muted-foreground">
-                                                        <Clock className="mr-1 h-3 w-3" />
-                                                        {item.durationHours >= 168 ? `${Math.floor(item.durationHours / 24)}j` : `${item.durationHours}h`}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                className="mt-3 gap-1 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
-                                                disabled={buyLoading === key || balance < item.price}
-                                                onClick={() => buyItem(key)}
-                                            >
-                                                {buyLoading === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShoppingBag className="h-3 w-3" />}
-                                                Acheter
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-
-                    {/* Black Market */}
-                    <Card className="border-border bg-gradient-to-br from-card to-purple-500/5">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-purple-400" />
-                                Marché Noir
-                            </CardTitle>
-                            <CardDescription>Deals à durée limitée avec réductions exclusives</CardDescription>
+            {/* ═══════════════ PORTEFEUILLE ═══════════════ */}
+            <TabsContent value="wallet" className="mt-6 space-y-6">
+                {/* Stats cards */}
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Card className="border-border bg-card">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Économie totale</CardTitle>
+                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            {marketDeals.length === 0 ? (
-                                <p className="py-6 text-center text-muted-foreground">
-                                    Aucun deal actif — Le marché noir se renouvelle toutes les 12h
-                                </p>
+                            <p className="text-2xl font-bold text-emerald-500">{fmtEcus(totalEconomy.totalBalance)} pq</p>
+                            <p className="text-xs text-muted-foreground">{totalEconomy.walletCount} portefeuilles</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-border bg-card">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Prêts en cours</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold text-amber-500">{fmtEcus(totalEconomy.totalLoans)} pq</p>
+                            <p className="text-xs text-muted-foreground">Crédits actifs</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-border bg-card">
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Achats récents</CardTitle>
+                            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold">{recentPurchases.length}</p>
+                            <p className="text-xs text-muted-foreground">Dernières transactions</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Top richesses */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Trophy className="h-5 w-5 text-yellow-500" />
+                                Top Richesses
+                            </CardTitle>
+                            <CardDescription>Les joueurs les plus riches du serveur</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {topWallets.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Aucune donnée</p>
                             ) : (
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {marketDeals.map(deal => {
-                                        const item = SHOP_CATALOG[deal.item_key]
-                                        if (!item) return null
-                                        const discountedPrice = Math.floor(item.price * (1 - deal.discount_pct / 100))
-                                        const stockPct = Math.max(0, ((deal.stock - deal.sold) / deal.stock) * 100)
-                                        const expiresIn = new Date(deal.expires_at).getTime() - Date.now()
-                                        const hoursRemaining = Math.max(0, Math.floor(expiresIn / 3600_000))
-                                        const minsRemaining = Math.max(0, Math.floor((expiresIn % 3600_000) / 60_000))
+                                <div className="space-y-3">
+                                    {topWallets.slice(0, 10).map((w, i) => (
+                                        <div key={w.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
+                                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
+                                                : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                    : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                        : "bg-primary/10 text-primary"
+                                                }`}>
+                                                #{i + 1}
+                                            </div>
+                                            <Avatar className="h-10 w-10 border-2 border-border">
+                                                <AvatarImage src={userAvatar(w.user_id)} />
+                                                <AvatarFallback>{userName(w.user_id)[0]?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-foreground truncate">{userName(w.user_id)}</p>
+                                                <p className="text-sm text-muted-foreground">{fmtEcus(w.balance)} pq</p>
+                                            </div>
+                                            {w.loan_amount > 0 && (
+                                                <Badge variant="outline" className="text-amber-500 border-amber-500/30 shrink-0">
+                                                    Prêt: {fmtEcus(w.loan_amount)}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Historique achats */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Clock className="h-5 w-5 text-blue-500" />
+                                Achats récents
+                            </CardTitle>
+                            <CardDescription>Dernières transactions boutique</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {recentPurchases.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Aucun achat</p>
+                            ) : (
+                                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                                    {recentPurchases.map((p, i) => {
+                                        const item = SHOP_CATALOG[p.item_key]
+                                        const date = new Date(p.purchased_at)
                                         return (
-                                            <div key={deal.id} className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 space-y-3">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-2xl">{item.emoji}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-semibold text-foreground">{item.name}</p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-sm font-bold text-emerald-400">{fmtEcus(discountedPrice)} pq</span>
-                                                            <span className="text-xs text-muted-foreground line-through">{fmtEcus(item.price)}</span>
-                                                            <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
-                                                                -{deal.discount_pct}%
-                                                            </Badge>
-                                                        </div>
-                                                    </div>
+                                            <div key={p.id || i} className="flex items-center gap-3 rounded-xl bg-muted/30 p-3">
+                                                <span className="text-xl">{item?.emoji || "📦"}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-foreground text-sm truncate">{p.item_name}</p>
+                                                    <p className="text-xs text-muted-foreground">{userName(p.user_id)}</p>
                                                 </div>
-                                                <div className="space-y-1.5">
-                                                    <div className="flex justify-between text-xs text-muted-foreground">
-                                                        <span>Stock: {deal.stock - deal.sold}/{deal.stock}</span>
-                                                        <span>{hoursRemaining}h {minsRemaining}m restantes</span>
-                                                    </div>
-                                                    <Progress value={stockPct} className="h-1.5" />
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-sm font-semibold text-red-400">-{fmtEcus(p.price)} pq</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                                    </p>
                                                 </div>
                                             </div>
                                         )
@@ -585,188 +523,430 @@ export default function EconomyPage() {
                             )}
                         </CardContent>
                     </Card>
-                </TabsContent>
+                </div>
+            </TabsContent>
 
-                {/* ═══════════════ INVENTAIRE ═══════════════ */}
-                <TabsContent value="inventory" className="mt-6 space-y-6">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        {/* Items en circulation */}
-                        <Card className="border-border bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Package className="h-5 w-5 text-blue-500" />
-                                    Items en circulation
-                                </CardTitle>
-                                <CardDescription>Items actifs (non utilisés) sur le serveur</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {inventoryStats.length === 0 ? (
-                                    <p className="py-8 text-center text-muted-foreground">Aucun item en circulation</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                                        {inventoryStats.map(({ key, count, item }) => (
-                                            <div key={key} className="flex items-center gap-3 rounded-xl bg-muted/30 p-3">
-                                                <span className="text-xl">{item.emoji}</span>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-medium text-foreground text-sm">{item.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{CATEGORIES[item.category]?.name}</p>
-                                                </div>
-                                                <Badge className="bg-primary/10 text-primary border-primary/20">
-                                                    ×{count}
+            {/* ═══════════════ BOUTIQUE ═══════════════ */}
+            <TabsContent value="shop" className="mt-6 space-y-6">
+                {/* Category selector */}
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(CATEGORIES).map(([key, cat]) => (
+                        <button
+                            key={key}
+                            onClick={() => setSelectedCategory(key)}
+                            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${selectedCategory === key
+                                ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                        >
+                            <span>{cat.emoji}</span>
+                            {cat.name}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Items grid */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {catItems.map(([key, item]) => (
+                        <Card key={key} className="border-border bg-card transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+                            <CardContent className="p-5">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
+                                        {item.emoji}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-foreground">{item.name}</h3>
+                                        <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
+                                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                                                {fmtEcus(item.price)} pq
+                                            </Badge>
+                                            {item.durationHours && (
+                                                <Badge variant="outline" className="text-muted-foreground">
+                                                    <Clock className="mr-1 h-3 w-3" />
+                                                    {item.durationHours >= 168 ? `${Math.floor(item.durationHours / 24)}j` : `${item.durationHours}h`}
                                                 </Badge>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Top collectionneurs */}
-                        <Card className="border-border bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Trophy className="h-5 w-5 text-yellow-500" />
-                                    Top Collectionneurs
-                                </CardTitle>
-                                <CardDescription>Joueurs avec le plus d'items non utilisés</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {topCollectors.length === 0 ? (
-                                    <p className="py-8 text-center text-muted-foreground">Aucune donnée</p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {topCollectors.map((c, i) => (
-                                            <div key={c.userId} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
-                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                            : "bg-primary/10 text-primary"
-                                                    }`}>
-                                                    #{i + 1}
-                                                </div>
-                                                <Avatar className="h-10 w-10 border-2 border-border">
-                                                    <AvatarImage src={userAvatar(c.userId)} />
-                                                    <AvatarFallback>{userName(c.userId)[0]?.toUpperCase()}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-foreground truncate">{userName(c.userId)}</p>
-                                                    <p className="text-sm text-muted-foreground">{c.count} items</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                {/* ═══════════════ LOTERIE ═══════════════ */}
-                <TabsContent value="lottery" className="mt-6 space-y-6">
-                    {/* Stats cards */}
-                    <div className="grid gap-4 md:grid-cols-4">
-                        <Card className="border-border bg-gradient-to-br from-card to-amber-500/5">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">💰 Cagnotte</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold text-amber-500">{fmtEcus(lotteryTotals.totalPot)} pq</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border bg-card">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">🎫 Tickets</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{lotteryTotals.totalTickets}</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border bg-card">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">👥 Participants</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{lotteryTotals.participants}</p>
-                            </CardContent>
-                        </Card>
-                        <Card className="border-border bg-card">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium">⏰ Tirage</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{daysLeft}j {hoursLeft}h</p>
-                                <p className="text-xs text-muted-foreground">Dimanche 21h</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        {/* Répartition des gains */}
-                        <Card className="border-border bg-gradient-to-br from-card to-yellow-500/5">
-                            <CardHeader>
-                                <CardTitle>🏆 Répartition des gains</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {[
-                                    { rank: "🥇 1er", pct: 70, color: "bg-yellow-500" },
-                                    { rank: "🥈 2e", pct: 20, color: "bg-gray-400" },
-                                    { rank: "🥉 3e", pct: 10, color: "bg-orange-600" },
-                                ].map(({ rank, pct, color }) => (
-                                    <div key={rank} className="space-y-1">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="font-medium">{rank}</span>
-                                            <span className="text-muted-foreground font-semibold">{fmtEcus(Math.floor(lotteryTotals.totalPot * pct / 100))} pq ({pct}%)</span>
+                                            )}
                                         </div>
-                                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                            <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-                                        </div>
+                                        <Button
+                                            size="sm"
+                                            className="mt-3 gap-1 w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
+                                            disabled={buyLoading === key || balance < item.price}
+                                            onClick={() => buyItem(key)}
+                                        >
+                                            {buyLoading === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShoppingBag className="h-3 w-3" />}
+                                            Acheter
+                                        </Button>
                                     </div>
-                                ))}
+                                </div>
                             </CardContent>
                         </Card>
+                    ))}
+                </div>
 
-                        {/* Classement tickets */}
-                        <Card className="border-border bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Ticket className="h-5 w-5 text-purple-500" />
-                                    Classement tickets
-                                </CardTitle>
-                                <CardDescription>Semaine {currentLotteryWeek()}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {lotteryData.length === 0 ? (
-                                    <p className="py-8 text-center text-muted-foreground">Aucun participant cette semaine</p>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {lotteryData.slice(0, 10).map((entry, i) => (
-                                            <div key={entry.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
-                                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
-                                                    : i === 1 ? "bg-gray-400/20 text-gray-400"
-                                                        : i === 2 ? "bg-orange-600/20 text-orange-600"
-                                                            : "bg-primary/10 text-primary"
-                                                    }`}>
-                                                    #{i + 1}
-                                                </div>
-                                                <Avatar className="h-10 w-10 border-2 border-border">
-                                                    <AvatarImage src={userAvatar(entry.user_id)} />
-                                                    <AvatarFallback>{userName(entry.user_id)[0]?.toUpperCase()}</AvatarFallback>
-                                                </Avatar>
+                {/* Black Market */}
+                <Card className="border-border bg-gradient-to-br from-card to-purple-500/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-purple-400" />
+                            Marché Noir
+                        </CardTitle>
+                        <CardDescription>Deals à durée limitée avec réductions exclusives</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {marketDeals.length === 0 ? (
+                            <p className="py-6 text-center text-muted-foreground">
+                                Aucun deal actif — Le marché noir se renouvelle toutes les 12h
+                            </p>
+                        ) : (
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {marketDeals.map(deal => {
+                                    const item = SHOP_CATALOG[deal.item_key]
+                                    if (!item) return null
+                                    const discountedPrice = Math.floor(item.price * (1 - deal.discount_pct / 100))
+                                    const stockPct = Math.max(0, ((deal.stock - deal.sold) / deal.stock) * 100)
+                                    const expiresIn = new Date(deal.expires_at).getTime() - Date.now()
+                                    const hoursRemaining = Math.max(0, Math.floor(expiresIn / 3600_000))
+                                    const minsRemaining = Math.max(0, Math.floor((expiresIn % 3600_000) / 60_000))
+                                    return (
+                                        <div key={deal.id} className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4 space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">{item.emoji}</span>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-foreground truncate">{userName(entry.user_id)}</p>
+                                                    <p className="font-semibold text-foreground">{item.name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-sm font-bold text-emerald-400">{fmtEcus(discountedPrice)} pq</span>
+                                                        <span className="text-xs text-muted-foreground line-through">{fmtEcus(item.price)}</span>
+                                                        <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
+                                                            -{deal.discount_pct}%
+                                                        </Badge>
+                                                    </div>
                                                 </div>
-                                                <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20">
-                                                    🎫 {entry.tickets} ticket{entry.tickets > 1 ? "s" : ""}
-                                                </Badge>
                                             </div>
-                                        ))}
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between text-xs text-muted-foreground">
+                                                    <span>Stock: {deal.stock - deal.sold}/{deal.stock}</span>
+                                                    <span>{hoursRemaining}h {minsRemaining}m restantes</span>
+                                                </div>
+                                                <Progress value={stockPct} className="h-1.5" />
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            {/* ═══════════════ INVENTAIRE ═══════════════ */}
+            <TabsContent value="inventory" className="mt-6 space-y-6">
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Items en circulation */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Package className="h-5 w-5 text-blue-500" />
+                                Items en circulation
+                            </CardTitle>
+                            <CardDescription>Items actifs (non utilisés) sur le serveur</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {inventoryStats.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Aucun item en circulation</p>
+                            ) : (
+                                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                                    {inventoryStats.map(({ key, count, item }) => (
+                                        <div key={key} className="flex items-center gap-3 rounded-xl bg-muted/30 p-3">
+                                            <span className="text-xl">{item.emoji}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-foreground text-sm">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground">{CATEGORIES[item.category]?.name}</p>
+                                            </div>
+                                            <Badge className="bg-primary/10 text-primary border-primary/20">
+                                                ×{count}
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Top collectionneurs */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Trophy className="h-5 w-5 text-yellow-500" />
+                                Top Collectionneurs
+                            </CardTitle>
+                            <CardDescription>Joueurs avec le plus d'items non utilisés</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {topCollectors.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Aucune donnée</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {topCollectors.map((c, i) => (
+                                        <div key={c.userId} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
+                                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
+                                                : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                    : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                        : "bg-primary/10 text-primary"
+                                                }`}>
+                                                #{i + 1}
+                                            </div>
+                                            <Avatar className="h-10 w-10 border-2 border-border">
+                                                <AvatarImage src={userAvatar(c.userId)} />
+                                                <AvatarFallback>{userName(c.userId)[0]?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-foreground truncate">{userName(c.userId)}</p>
+                                                <p className="text-sm text-muted-foreground">{c.count} items</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            {/* ═══════════════ LOTERIE ═══════════════ */}
+            <TabsContent value="lottery" className="mt-6 space-y-6">
+                {/* Stats cards */}
+                <div className="grid gap-4 md:grid-cols-4">
+                    <Card className="border-border bg-gradient-to-br from-card to-amber-500/5">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">💰 Cagnotte</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold text-amber-500">{fmtEcus(lotteryTotals.totalPot)} pq</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-border bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">🎫 Tickets</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold">{lotteryTotals.totalTickets}</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-border bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">👥 Participants</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold">{lotteryTotals.participants}</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="border-border bg-card">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">⏰ Tirage</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-bold">{daysLeft}j {hoursLeft}h</p>
+                            <p className="text-xs text-muted-foreground">Dimanche 21h</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Répartition des gains */}
+                    <Card className="border-border bg-gradient-to-br from-card to-yellow-500/5">
+                        <CardHeader>
+                            <CardTitle>🏆 Répartition des gains</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {[
+                                { rank: "🥇 1er", pct: 70, color: "bg-yellow-500" },
+                                { rank: "🥈 2e", pct: 20, color: "bg-gray-400" },
+                                { rank: "🥉 3e", pct: 10, color: "bg-orange-600" },
+                            ].map(({ rank, pct, color }) => (
+                                <div key={rank} className="space-y-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="font-medium">{rank}</span>
+                                        <span className="text-muted-foreground font-semibold">{fmtEcus(Math.floor(lotteryTotals.totalPot * pct / 100))} pq ({pct}%)</span>
                                     </div>
+                                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+
+                    {/* Classement tickets */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Ticket className="h-5 w-5 text-purple-500" />
+                                Classement tickets
+                            </CardTitle>
+                            <CardDescription>Semaine {currentLotteryWeek()}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {lotteryData.length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Aucun participant cette semaine</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {lotteryData.slice(0, 10).map((entry, i) => (
+                                        <div key={entry.user_id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3 transition-all hover:bg-muted">
+                                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${i === 0 ? "bg-yellow-500/20 text-yellow-500"
+                                                : i === 1 ? "bg-gray-400/20 text-gray-400"
+                                                    : i === 2 ? "bg-orange-600/20 text-orange-600"
+                                                        : "bg-primary/10 text-primary"
+                                                }`}>
+                                                #{i + 1}
+                                            </div>
+                                            <Avatar className="h-10 w-10 border-2 border-border">
+                                                <AvatarImage src={userAvatar(entry.user_id)} />
+                                                <AvatarFallback>{userName(entry.user_id)[0]?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-foreground truncate">{userName(entry.user_id)}</p>
+                                            </div>
+                                            <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                                🎫 {entry.tickets} ticket{entry.tickets > 1 ? "s" : ""}
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+
+            {/* ═══════════════ BOOSTERS (TCG) ═══════════════ */}
+            <TabsContent value="boosters" className="mt-6 space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                    {/* Basic Booster Card */}
+                    <Card className="border-emerald-500/20 bg-gradient-to-br from-card to-emerald-500/5 relative overflow-hidden">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Package className="h-5 w-5 text-emerald-500" />
+                                Booster Standard
+                            </CardTitle>
+                            <CardDescription>Ouvre un booster classique de 5 cartes !</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between rounded-xl bg-muted/50 p-4 border border-border">
+                                <div>
+                                    <p className="font-semibold text-foreground">Boosters Quotidiens</p>
+                                    <p className="text-sm text-muted-foreground">{boosterData.freeRemaining} gratuit(s) restant(s) sur {boosterData.dailyLimit}</p>
+                                </div>
+                                <div className="text-3xl">🃏</div>
+                            </div>
+                            <div className="flex gap-3">
+                                {boosterData.freeRemaining > 0 ? (
+                                    <Button
+                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                                        onClick={() => handleOpenBooster(null, true)}
+                                        disabled={openingBooster}
+                                    >
+                                        {openingBooster ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                                        Ouvrir Gratuitement
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        className="w-full"
+                                        onClick={() => handleOpenBooster(null, false)}
+                                        disabled={openingBooster || balance < 500}
+                                    >
+                                        {openingBooster ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Wallet className="h-4 w-4 mr-2" />}
+                                        Ouvrir (500 pq)
+                                    </Button>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Inventaire de Boosters */}
+                    <Card className="border-border bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Package className="h-5 w-5 text-purple-500" />
+                                Tes Packs et Boosters
+                            </CardTitle>
+                            <CardDescription>Ouvre tes objets TCG en attente</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {Object.keys(boosterData.boosterInventory).length === 0 ? (
+                                <p className="py-8 text-center text-muted-foreground">Tu n'as pas de packs spéciaux en inventaire. Achètes-en dans la boutique !</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {Object.entries(boosterData.boosterInventory).map(([key, count]) => {
+                                        const item = SHOP_CATALOG[key]
+                                        return (
+                                            <div key={key} className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+                                                <span className="text-2xl">{item?.emoji || "📦"}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-foreground">{item?.name || key}</p>
+                                                    <p className="text-xs text-muted-foreground">Quantité: {count}</p>
+                                                </div>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => handleOpenBooster(key, false)}
+                                                    disabled={openingBooster}
+                                                >
+                                                    {openingBooster ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Ouvrir"}
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Zone de Résultat du Booster */}
+                {openedCards.length > 0 && (
+                    <Card className="border-primary/30 bg-primary/5 mt-8 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
+                                <Sparkles className="h-6 w-6 text-yellow-500" />
+                                Cartes Obtenues
+                                <Sparkles className="h-6 w-6 text-yellow-500" />
+                            </CardTitle>
+                            <CardDescription>Félicitations pour tes nouveaux tirages !</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                {openedCards.map((card, idx) => {
+                                    let rarityColor = "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                                    if (card.rarity === "RARE") rarityColor = "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                    if (card.rarity === "EPIC") rarityColor = "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                    if (card.rarity === "LEGENDARY") rarityColor = "bg-yellow-500/10 text-yellow-500 border-yellow-500/40"
+                                    if (card.rarity === "MYTHIC") rarityColor = "bg-red-500/10 text-red-500 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`flex flex-col items-center justify-center p-4 rounded-xl border ${rarityColor} relative overflow-hidden group hover:scale-105 transition-transform duration-300 animate-in zoom-in`}
+                                            style={{ animationDelay: `${idx * 150}ms`, animationFillMode: "both" }}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <span className="text-4xl mb-2 drop-shadow-md">{card.emoji}</span>
+                                            <p className="font-bold text-sm text-center line-clamp-2">{card.name}</p>
+                                            <Badge variant="outline" className={`mt-2 text-[10px] ${rarityColor} border-none`}>
+                                                {card.rarity}
+                                            </Badge>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            <div className="mt-6 text-center">
+                                <Button variant="outline" onClick={() => setOpenedCards([])}>Fermer</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </TabsContent>
+        </Tabs>
+        </div >
     )
 }
