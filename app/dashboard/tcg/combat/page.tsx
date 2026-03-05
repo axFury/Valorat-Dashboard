@@ -231,12 +231,12 @@ export default function TCGCombatPage() {
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {/* Battle Log */}
-                    <Card className="lg:col-span-1 order-last lg:order-none h-[500px] flex flex-col">
-                        <CardHeader className="py-3 border-b flex flex-row items-center justify-between">
+                    <Card className="lg:col-span-1 order-last lg:order-none min-h-[400px] lg:h-[650px] flex flex-col shadow-xl border-zinc-800/50">
+                        <CardHeader className="py-3 border-b border-zinc-800/50 flex flex-row items-center justify-between bg-zinc-900/50">
                             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">Journal de Combat</CardTitle>
                             <Send className="h-4 w-4 text-primary opacity-50" />
                         </CardHeader>
-                        <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 text-xs font-mono">
+                        <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 text-xs font-mono bg-black/20">
                             {activeMatch.state.log.map((line, i) => (
                                 <div key={i} className={`p-2 rounded ${i === 0 ? "bg-primary/10 text-primary border-l-2 border-primary" : "text-muted-foreground"}`}>
                                     {line}
@@ -247,9 +247,9 @@ export default function TCGCombatPage() {
 
                     {/* Arena */}
                     <Card className="lg:col-span-2 overflow-hidden bg-gradient-to-b from-zinc-900 to-black border-zinc-800 shadow-2xl">
-                        <CardContent className="p-0 flex flex-col h-[500px]">
+                        <CardContent className="p-0 flex flex-col min-h-[650px]">
                             {/* Opponent side */}
-                            <div className="p-8 flex-1 flex flex-col items-center justify-center gap-4 border-b border-zinc-800/50 bg-indigo-950/20">
+                            <div className="p-6 sm:p-8 flex-1 flex flex-col items-center justify-center gap-4 border-b border-zinc-800/50 bg-indigo-950/20">
                                 {isWaiting ? (
                                     <div className="text-center space-y-4">
                                         <div className="flex justify-center">
@@ -261,9 +261,9 @@ export default function TCGCombatPage() {
                                 ) : (
                                     <>
                                         <div className="text-center">
-                                            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Adversaire</p>
-                                            <h3 className="text-2xl font-bold">{opActive?.name}</h3>
-                                            <div className="mt-2 w-64 bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
+                                            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Adversaire</p>
+                                            <h3 className="text-xl font-bold">{opActive?.name}</h3>
+                                            <div className="mt-2 w-48 sm:w-64 bg-zinc-950 h-4 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
                                                 <div
                                                     className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-500"
                                                     style={{ width: `${(opP!.hp[opP!.active] / opActive!.maxHp) * 100}%` }}
@@ -274,11 +274,11 @@ export default function TCGCombatPage() {
                                             </div>
                                             <div className="mt-2 flex gap-1 justify-center">
                                                 {opP!.deck.map((_, i) => (
-                                                    <div key={i} className={`w-2 h-2 rounded-full ${opP!.hp[i] > 0 ? "bg-red-500" : "bg-zinc-800"}`} />
+                                                    <div key={i} className={`w-1.5 h-1.5 rounded-full ${opP!.hp[i] > 0 ? "bg-red-500" : "bg-zinc-800"}`} />
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="w-40 h-40 relative group">
+                                        <div className="w-32 h-32 sm:w-40 sm:h-40 relative group">
                                             <div className="absolute inset-0 bg-red-500/10 rounded-full blur-3xl group-hover:bg-red-500/20 transition-all" />
                                             <img src={opActive?.image} className="w-full h-full object-contain relative z-10 drop-shadow-2xl brightness-75 grayscale-[0.2]" />
                                         </div>
@@ -287,14 +287,14 @@ export default function TCGCombatPage() {
                             </div>
 
                             {/* Player side */}
-                            <div className="p-8 flex-1 flex flex-col items-center justify-center gap-4 bg-emerald-950/10">
-                                <div className="w-40 h-40 relative group">
+                            <div className="p-6 sm:p-8 flex-1 flex flex-col items-center justify-center gap-4 bg-emerald-950/10">
+                                <div className="w-32 h-32 sm:w-40 sm:h-40 relative group">
                                     <div className="absolute inset-0 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
                                     <img src={myActive.image} className={`w-full h-full object-contain relative z-10 drop-shadow-2xl ${!isMyTurn || isWaiting ? "brightness-75" : "animate-pulse"}`} />
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-2xl font-bold text-emerald-400">{myActive.name}</h3>
-                                    <div className="mt-2 w-64 bg-zinc-950 h-5 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
+                                    <h3 className="text-xl font-bold text-emerald-400">{myActive.name}</h3>
+                                    <div className="mt-2 w-48 sm:w-64 bg-zinc-950 h-4 rounded-full overflow-hidden border border-zinc-800 relative shadow-inner">
                                         <div
                                             className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500"
                                             style={{ width: `${(myP.hp[myP.active] / myActive.maxHp) * 100}%` }}
@@ -305,14 +305,14 @@ export default function TCGCombatPage() {
                                     </div>
                                     <div className="mt-2 flex gap-1 justify-center">
                                         {myP.deck.map((_, i) => (
-                                            <div key={i} className={`w-2 h-2 rounded-full ${myP.hp[i] > 0 ? "bg-emerald-500" : "bg-zinc-800 shadow-none"} ${i === myP.active ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""}`} />
+                                            <div key={i} className={`w-1.5 h-1.5 rounded-full ${myP.hp[i] > 0 ? "bg-emerald-500" : "bg-zinc-800 shadow-none"} ${i === myP.active ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""}`} />
                                         ))}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Controls */}
-                            <div className="bg-zinc-900 border-t border-zinc-800 p-6">
+                            <div className="bg-zinc-900 border-t border-zinc-800 p-4 sm:p-6 mt-auto">
                                 {isMyTurn && activeMatch.status === "active" ? (
                                     <div className="grid grid-cols-2 gap-4">
                                         {myActive.attacks.map((atk: any, i: number) => (
