@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         // ACTION: START
         // -----------------------
         if (action === "start") {
-            if (typeof mise !== "number" || mise < 1 || mise > 500000) {
+            if (typeof mise !== "number" || !Number.isInteger(mise) || mise < 1 || mise > 500000) {
                 return NextResponse.json({ error: "Mise invalide (1 - 500k)" }, { status: 400 })
             }
 
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
 
         // Handle player attempting a manual cashout
         if (action === "cashout") {
-            if (typeof cashoutMult !== "number" || cashoutMult < 1.00) {
+            if (typeof cashoutMult !== "number" || !Number.isFinite(cashoutMult) || cashoutMult < 1.00) {
                 return NextResponse.json({ error: "Multiplicateur invalide" }, { status: 400 })
             }
 

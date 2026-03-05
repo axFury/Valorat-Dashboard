@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
         if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 })
 
         if (action === "start") {
-            if (!mise || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
+            if (!mise || typeof mise !== "number" || !Number.isInteger(mise) || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
             if (mise > 50000) return NextResponse.json({ error: "Mise max: 50 000 pq" }, { status: 400 })
 
             const { data: wallet } = await getSupa()

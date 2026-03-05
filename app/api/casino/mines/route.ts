@@ -120,9 +120,9 @@ export async function POST(req: NextRequest) {
         // ACTION: START GAME
         // -----------------------
         if (action === "start") {
-            if (!mise || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
+            if (!mise || typeof mise !== "number" || !Number.isInteger(mise) || mise <= 0) return NextResponse.json({ error: "Mise invalide" }, { status: 400 })
             if (mise > 500000) return NextResponse.json({ error: "Mise max: 500 000 pq" }, { status: 400 })
-            if (!minesCount || minesCount < 1 || minesCount > 24) return NextResponse.json({ error: "Nombre de mines invalide (1 - 24)" }, { status: 400 })
+            if (!minesCount || typeof minesCount !== "number" || !Number.isInteger(minesCount) || minesCount < 1 || minesCount > 24) return NextResponse.json({ error: "Nombre de mines invalide (1 - 24)" }, { status: 400 })
 
             const { data: wallet } = await getSupa()
                 .from("user_wallets")
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
         // ACTION: PICK TILE
         // -----------------------
         if (action === "pick") {
-            if (typeof pickIndex !== "number" || pickIndex < 0 || pickIndex >= 25) {
+            if (typeof pickIndex !== "number" || !Number.isInteger(pickIndex) || pickIndex < 0 || pickIndex >= 25) {
                 return NextResponse.json({ error: "Index invalide" }, { status: 400 })
             }
             if (game.revealed.includes(pickIndex)) {

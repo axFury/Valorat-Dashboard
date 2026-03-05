@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     let totalMise = 0;
     for (const b of bets) {
-        if (!b.bet || !b.mise || b.mise <= 0) {
+        if (!b.bet || !b.mise || typeof b.mise !== "number" || !Number.isInteger(b.mise) || b.mise <= 0) {
             return NextResponse.json({ error: "Une mise est invalide" }, { status: 400 })
         }
         totalMise += b.mise;

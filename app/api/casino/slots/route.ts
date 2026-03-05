@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const { guildId, mise } = body
-    if (!guildId || !mise || mise <= 0) return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 })
+    if (!guildId || !mise || typeof mise !== "number" || !Number.isInteger(mise) || mise <= 0) return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 })
     if (mise > 50000) return NextResponse.json({ error: "Mise max: 50 000 pq" }, { status: 400 })
 
     const supa = getSupa()
