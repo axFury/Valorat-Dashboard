@@ -100,11 +100,17 @@ export default function TCGBoosterPage() {
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    Ouverture de Boosters TCG
-                </h1>
-                <p className="text-muted-foreground mt-1">Ouvre tes boosters et packs pour agrandir ta collection.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                        Ouverture de Boosters TCG
+                    </h1>
+                    <p className="text-muted-foreground mt-1">Ouvre tes boosters et packs pour agrandir ta collection.</p>
+                </div>
+                <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border border-border shrink-0">
+                    <Wallet className="h-5 w-5 text-emerald-500" />
+                    <span className="font-bold text-lg">{balance} <span className="text-sm text-muted-foreground font-normal">pq</span></span>
+                </div>
             </div>
 
             {msg && (
@@ -222,9 +228,18 @@ export default function TCGBoosterPage() {
                                         style={{ animationDelay: `${idx * 150}ms`, animationFillMode: "both" }}
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        <span className="text-4xl mb-2 drop-shadow-md">{card.emoji}</span>
-                                        <p className="font-bold text-sm text-center line-clamp-2">{card.name}</p>
-                                        <Badge variant="outline" className={`mt-2 text-[10px] ${rarityColor} border-none`}>
+
+                                        {card.image ? (
+                                            <div className="relative w-24 h-32 mb-3 rounded-lg overflow-hidden border border-white/10 shadow-lg group-hover:shadow-xl transition-all">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={card.image} alt={card.name} className="object-cover w-full h-full" />
+                                            </div>
+                                        ) : (
+                                            <span className="text-4xl mb-2 drop-shadow-md">{card.emoji}</span>
+                                        )}
+
+                                        <p className="font-bold text-sm text-center line-clamp-2 z-10">{card.name}</p>
+                                        <Badge variant="outline" className={`mt-2 text-[10px] ${rarityColor} border-none z-10 font-bold uppercase tracking-wider`}>
                                             {card.rarity}
                                         </Badge>
                                     </div>

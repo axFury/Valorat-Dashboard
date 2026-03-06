@@ -140,7 +140,7 @@ export const CARDS = [
     { id: "cars_holley", name: "Holley Shiftwell", collection: "cars", rarity: "RARE", emoji: "💜", description: "L'espionne hightech et partenaire de Finn.", image: "https://static.wikia.nocookie.net/pixar/images/2/2b/Cars-2-holley-shiftwell-posing-1.jpg" },
     { id: "cars_king", name: "Le King", collection: "cars", rarity: "RARE", emoji: "👑", description: "Strip Weathers, le roi légendaire du Piston Cup.", image: "https://static.wikia.nocookie.net/pixar/images/5/5e/TheKing.png" },
     { id: "cars_chick", name: "Chick Hicks", collection: "cars", rarity: "COMMON", emoji: "🟢", description: "Le rival jaloux de McQueen.", image: "https://static.wikia.nocookie.net/pixar/images/c/c9/Chick-Hicks-Render.png" },
-    { id: "cars_cruz", name: "Cruz Ramirez", collection: "cars", rarity: "EPIC", emoji: "🌟", description: "L'entraîneuse devenue championne.", image: "https://static.wikia.nocookie.net/pixar/images/7/71/Cruz_Ramirez_C3.png" },
+    { id: "cars_cruz", name: "Cruz Ramirez", collection: "cars", rarity: "EPIC", emoji: "🌟", description: "L'entraîneuse devenue championne.", image: "https://static.wikia.nocookie.net/pixar/images/a/ab/Cruz_Ramirez_%28Cars_3%29.png" },
     { id: "cars_jackson", name: "Jackson Storm", collection: "cars", rarity: "LEGENDARY", emoji: "🌩️", description: "La nouvelle génération ultra-rapide.", image: "https://static.wikia.nocookie.net/pixar/images/8/85/JacksonStormCars3Artwork.png" },
     { id: "cars_luigi", name: "Luigi", collection: "cars", rarity: "MYTHIC", emoji: "🇮🇹", description: "Pit Stop ! Le Fiat 500 fan de Ferrari.", image: "https://static.wikia.nocookie.net/pixar/images/8/87/Luigi_cars.png" },
 
@@ -150,7 +150,7 @@ export const CARDS = [
     { id: "cp_david", name: "David Martinez", collection: "cyberpunk", rarity: "COMMON", emoji: "⚡", description: "Le jeune mercenaire de Night City avec le Sandevistan.", image: "https://static.wikia.nocookie.net/cyberpunk/images/a/ac/David_Infobox_CPEDGE.png" },
     { id: "cp_lucy", name: "Lucy", collection: "cyberpunk", rarity: "RARE", emoji: "🌙", description: "La netrunner rêvant d'aller sur la Lune.", image: "https://static.wikia.nocookie.net/cyberpunk/images/9/99/Lucyna_Kushinada_Infobox_CPEDGE.png" },
     { id: "cp_maine", name: "Maine", collection: "cyberpunk", rarity: "RARE", emoji: "💪", description: "Le colosse leader du crew d'Edgerunners.", image: "https://static.wikia.nocookie.net/cyberpunk/images/6/65/Maine_2020HOTB.jpeg" },
-    { id: "cp_dorio", name: "Dorio", collection: "cyberpunk", rarity: "COMMON", emoji: "🛡️", description: "La partenaire de Maine, forte et loyale.", image: "https://static.wikia.nocookie.net/cyberpunk/images/a/a2/Dorio_Infobox_CPEDGE.png" },
+    { id: "cp_dorio", name: "Dorio", collection: "cyberpunk", rarity: "COMMON", emoji: "🛡️", description: "La partenaire de Maine, forte et loyale.", image: "https://static.wikia.nocookie.net/cyberpunk/images/5/53/Dorio_Inside_Look_2_ScreenCap_CPEDGE.png" },
     { id: "cp_kiwi", name: "Kiwi", collection: "cyberpunk", rarity: "RARE", emoji: "🥝", description: "La netrunner vétéran au masque mystérieux.", image: "https://static.wikia.nocookie.net/cyberpunk/images/6/6a/Kiwi_Infobox_CPEDGE.jpg" },
     { id: "cp_pilar", name: "Pilar", collection: "cyberpunk", rarity: "COMMON", emoji: "😎", description: "Le petit rigolo du crew, frère de Rebecca.", image: "https://static.wikia.nocookie.net/cyberpunk/images/c/c6/Pilar_Infobox_CPEDGE.jpg" },
     { id: "cp_rebecca", name: "Rebecca", collection: "cyberpunk", rarity: "EPIC", emoji: "🔫", description: "La petite psychopathe au gros flingue.", image: "https://static.wikia.nocookie.net/cyberpunk/images/1/19/Rebecca_Infobox_CPEDGE.png" },
@@ -158,7 +158,7 @@ export const CARDS = [
     { id: "cp_faraday", name: "Faraday", collection: "cyberpunk", rarity: "EPIC", emoji: "🤵", description: "Le fixer manipulateur de Night City.", image: "https://static.wikia.nocookie.net/cyberpunk/images/c/ce/Faraday_Infobox_CPEDGE.png" },
     { id: "cp_adam", name: "Adam Smasher", collection: "cyberpunk", rarity: "LEGENDARY", emoji: "🤖", description: "Le cyborg légendaire d'Arasaka, machine de guerre.", image: "https://static.wikia.nocookie.net/cyberpunk/images/5/51/Char_profile_adamsmash2077.png" },
     { id: "cp_johnny", name: "Johnny Silverhand", collection: "cyberpunk", rarity: "LEGENDARY", emoji: "🎸", description: "Le rockerboy terroriste gravé dans une puce.", image: "https://static.wikia.nocookie.net/cyberpunk/images/8/82/Johnny_Silverhand_Infobox_CP2077PL.png" },
-    { id: "cp_v", name: "V", collection: "cyberpunk", rarity: "MYTHIC", emoji: "🌆", description: "Le mercenaire légendaire de Night City.", image: "https://static.wikia.nocookie.net/cyberpunk/images/5/5e/V_character.png" },
+    { id: "cp_v", name: "V", collection: "cyberpunk", rarity: "MYTHIC", emoji: "🌆", description: "Le mercenaire légendaire de Night City.", image: "https://static.wikia.nocookie.net/cyberpunk/images/a/af/V_Infobox_CP2077.png" },
 
     // ═══════════════════════════════════════════
     //  🧪 BREAKING BAD — 16 cards
@@ -176,7 +176,7 @@ export const CARDS = [
     { id: "bb_jr", name: "Walter Jr.", collection: "breaking_bad", rarity: "COMMON", emoji: "🥣", description: "Le fils de Walt, fan de céréales.", image: "https://static.wikia.nocookie.net/breakingbad/images/e/e7/WaltJrS5.jpg" },
     { id: "bb_lydia", name: "Lydia Rodarte", collection: "breaking_bad", rarity: "EPIC", emoji: "🍵", description: "La businesswoman impitoyable au thé.", image: "https://static.wikia.nocookie.net/breakingbad/images/7/78/Lydia_S5b.jpg" },
     { id: "bb_gus", name: "Gustavo Fring", collection: "breaking_bad", rarity: "EPIC", emoji: "🐔", description: "Le patron de Los Pollos Hermanos au double visage.", image: "https://static.wikia.nocookie.net/breakingbad/images/5/5e/Gus_Fring_2002.jpg" },
-    { id: "bb_twins", name: "Les Cousins", collection: "breaking_bad", rarity: "EPIC", emoji: "👥", description: "Les tueurs silencieux du cartel Salamanca.", image: "https://static.wikia.nocookie.net/breakingbad/images/6/6e/TheCousins.png" },
+    { id: "bb_twins", name: "Les Cousins", collection: "breaking_bad", rarity: "EPIC", emoji: "👥", description: "Les tueurs silencieux du cartel Salamanca.", image: "https://static.wikia.nocookie.net/breakingbad/images/c/cb/Cousins.jpg" },
     { id: "bb_heisenberg", name: "Heisenberg", collection: "breaking_bad", rarity: "LEGENDARY", emoji: "🎩", description: "Say my name. L'alter ego de Walter White.", image: "https://static.wikia.nocookie.net/breakingbad/images/e/e7/BB-S5B-Walt-590.jpg" },
     { id: "bb_lalo", name: "Lalo Salamanca", collection: "breaking_bad", rarity: "MYTHIC", emoji: "🔥", description: "Le Salamanca charmeur et imprévisible.", image: "https://static.wikia.nocookie.net/breakingbad/images/f/fd/BCS_S6_Portrait_Lalo.jpg" },
 
