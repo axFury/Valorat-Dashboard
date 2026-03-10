@@ -276,6 +276,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
         .eq("id", params.matchId);
 
     if (updateError) {
+        console.error("Failed to update match:", updateError);
         return NextResponse.json({ error: "Failed to update match" }, { status: 500 });
     }
 
@@ -346,7 +347,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                     updated_at: new Date().toISOString()
                 };
 
-                await supa.from("darts_stats").upsert(statsToUpsert, { onConflict: "user_id,guild_id" });
+                const { error: upsertError } = await supa.from("darts_stats")
+                    .upsert(statsToUpsert, { onConflict: "user_id,guild_id" });
+
+                if (upsertError) {
+                    console.error(`Failed to upsert stats for user ${p.id}:`, upsertError);
+                } else {
+                    console.log(`Successfully updated stats for user ${p.id} (${p.name})`);
+                }
             }
         }
     }

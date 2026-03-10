@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
             user_id: userId,
             guild_id: guildId,
-            user_name: 'Joueur',
+            user_name: user?.username || 'Joueur',
             matches_played: 0,
             matches_won: 0,
             darts_thrown: 0,
