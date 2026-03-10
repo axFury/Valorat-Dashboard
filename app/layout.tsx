@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: "Valoratbot Dashboard",
   description: "Dashboard de gestion pour le bot Discord Valoratbot",
   generator: "la_fuf",
+  icons: {
+    icon: "/valoratbot-logo.png",
+    shortcut: "/valoratbot-logo.png",
+    apple: "/valoratbot-logo.png",
+  },
 }
 
 export default function RootLayout({
