@@ -19,9 +19,12 @@ export default function DartsSetupPage() {
     // Form state
     const [mode, setMode] = useState("local")
     const [gameType, setGameType] = useState("501")
+    const [matchFormat, setMatchFormat] = useState("first_to")
     const [legs, setLegs] = useState("3")
+    const [sets, setSets] = useState("1")
     const [inRule, setInRule] = useState("straight")
     const [outRule, setOutRule] = useState("double")
+    const [cricketMode, setCricketMode] = useState("normal")
 
     // Players state
     const [players, setPlayers] = useState<{ id: string, name: string, isGuest: boolean }[]>([
@@ -78,10 +81,10 @@ export default function DartsSetupPage() {
                     mode,
                     gameType,
                     rules: {
+                        matchFormat,
                         legsToWin: parseInt(legs, 10),
-                        setsToWin: 1, // On garde 1 set par défaut pour simplifier l'UI
-                        inRule,
-                        outRule
+                        setsToWin: parseInt(sets, 10),
+                        ...(gameType === "cricket" ? { cricketMode } : { inRule, outRule })
                     },
                     players
                 })
@@ -150,45 +153,79 @@ export default function DartsSetupPage() {
                             </Select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <Label>Legs pour gagner</Label>
-                                <Select value={legs} onValueChange={setLegs}>
+                                <Label>Format</Label>
+                                <Select value={matchFormat} onValueChange={setMatchFormat}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="1">1 Leg</SelectItem>
-                                        <SelectItem value="2">Best of 3 (2 Legs)</SelectItem>
-                                        <SelectItem value="3">Best of 5 (3 Legs)</SelectItem>
-                                        <SelectItem value="4">Best of 7 (4 Legs)</SelectItem>
-                                        <SelectItem value="5">Best of 9 (5 Legs)</SelectItem>
+                                        <SelectItem value="first_to">First To (Premier à)</SelectItem>
+                                        <SelectItem value="best_of">Best Of (Meilleur des)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Sets</Label>
+                                <Select value={sets} onValueChange={setSets}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                        {Array.from({ length: 21 }, (_, i) => i + 1).map(num => (
+                                            <SelectItem key={`set-${num}`} value={num.toString()}>{num}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Legs</Label>
+                                <Select value={legs} onValueChange={setLegs}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                        {Array.from({ length: 21 }, (_, i) => i + 1).map(num => (
+                                            <SelectItem key={`leg-${num}`} value={num.toString()}>{num}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>IN (Début)</Label>
-                                <Select value={inRule} onValueChange={setInRule}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="straight">Straight In</SelectItem>
-                                        <SelectItem value="double">Double In</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        {gameType === "cricket" ? (
+                            <div className="grid grid-cols-1 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Mode Cricket</Label>
+                                    <Select value={cricketMode} onValueChange={setCricketMode}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="normal">Normal (Points pour soi)</SelectItem>
+                                            <SelectItem value="cut_throat">Cut-Throat (Points aux autres)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>OUT (Fin)</Label>
-                                <Select value={outRule} onValueChange={setOutRule}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="straight">Straight Out</SelectItem>
-                                        <SelectItem value="double">Double Out</SelectItem>
-                                        <SelectItem value="master">Master Out</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>IN (Début)</Label>
+                                    <Select value={inRule} onValueChange={setInRule}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="straight">Straight In</SelectItem>
+                                            <SelectItem value="double">Double In</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>OUT (Fin)</Label>
+                                    <Select value={outRule} onValueChange={setOutRule}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="straight">Straight Out</SelectItem>
+                                            <SelectItem value="double">Double Out</SelectItem>
+                                            <SelectItem value="master">Master Out</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
 

@@ -353,10 +353,28 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/darts/matches/[matchId]/join/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]/join">> = Specific
+  const handler = {} as typeof import("../../app/api/darts/matches/[matchId]/join/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/darts/matches/[matchId]/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]">> = Specific
   const handler = {} as typeof import("../../app/api/darts/matches/[matchId]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/darts/matches/[matchId]/start/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]/start">> = Specific
+  const handler = {} as typeof import("../../app/api/darts/matches/[matchId]/start/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

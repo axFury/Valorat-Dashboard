@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const { data: matchData, error } = await supa.from("darts_matches").insert([{
         guild_id: guildId,
         creator_id: user.id,
-        status: "playing",
+        status: mode === "online" ? "setup" : "playing",
         mode: mode || "local",
         game_type: gameType,
         rules: rules,

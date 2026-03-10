@@ -35,10 +35,12 @@ export interface PlayerState {
 }
 
 export interface MatchRules {
+    matchFormat: 'first_to' | 'best_of';
     legsToWin: number;
     setsToWin: number;
-    inRule: 'straight' | 'double';
-    outRule: 'straight' | 'double' | 'master'; // master out = double ou treble
+    cricketMode?: 'normal' | 'cut_throat';
+    inRule?: 'straight' | 'double';
+    outRule?: 'straight' | 'double' | 'master';
 }
 
 export interface MatchState {

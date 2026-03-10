@@ -94,10 +94,18 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
 
                 if (!allOpponentsClosed) {
                     const pointsScored = excess * target;
-                    // Note: Bullseye = 25. Double Bullseye = 50 (donc target=25, multiplier=2)
-                    // points = excess * 25.
-                    currentPlayer.cricketPoints += pointsScored;
-                    finalScoreThisTurn += pointsScored; // Pour les stats globales
+                    if (rules.cricketMode === "cut_throat") {
+                        // Donne les points aux adversaires qui n'ont pas fermé
+                        for (const p of players) {
+                            if (p.id !== playerId && (p.cricketMarks?.[target] || 0) < 3) {
+                                p.cricketPoints = (p.cricketPoints || 0) + pointsScored;
+                            }
+                        }
+                    } else {
+                        // Normal : on se donne les points
+                        currentPlayer.cricketPoints += pointsScored;
+                    }
+                    finalScoreThisTurn += pointsScored; // Pour les stats globales (Ttjrs compté même si donné à l'autre)
                 }
             } else {
                 currentPlayer.cricketMarks[target] = newMarks;
@@ -105,18 +113,26 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
         }
 
         // Victoire Cricket
-        // Le joueur a 3 marques partout ET ses points >= le plus grand score des autres
         const allTargetsClosed = CRICKET_TARGETS.every(t => (currentPlayer.cricketMarks![t] || 0) === 3);
 
-        let highestOpponentPoints = 0;
-        for (const p of players) {
-            if (p.id !== playerId && (p.cricketPoints || 0) > highestOpponentPoints) {
-                highestOpponentPoints = p.cricketPoints || 0;
+        if (allTargetsClosed) {
+            let win = true;
+            for (const p of players) {
+                if (p.id !== playerId) {
+                    if (rules.cricketMode === "cut_throat") {
+                        // Pour gagner en cut_throat, on doit avoir un score INFERIEUR ou EGAL aux autres
+                        if (currentPlayer.cricketPoints! > (p.cricketPoints || 0)) {
+                            win = false;
+                        }
+                    } else {
+                        // Normal : on doit avoir un score SUPERIEUR ou EGAL aux autres
+                        if (currentPlayer.cricketPoints! < (p.cricketPoints || 0)) {
+                            win = false;
+                        }
+                    }
+                }
             }
-        }
-
-        if (allTargetsClosed && currentPlayer.cricketPoints! >= highestOpponentPoints) {
-            roundWon = true;
+            if (win) roundWon = true;
         }
 
         newScore = currentPlayer.cricketPoints; // Pour l'UI History, score restant n'a pas de sens en cricket
@@ -200,11 +216,36 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
 
     // Si Leg gagné
     if (roundWon) {
-        if (currentPlayer.legsWon >= rules.legsToWin) {
-            nextStatus = "finished";
-            winnerId = currentPlayer.id;
+        // Calcul des objectifs (Target)
+        let targetLegs = rules.legsToWin;
+        let targetSets = rules.setsToWin;
+        if (rules.matchFormat === 'best_of') {
+            targetLegs = Math.ceil(rules.legsToWin / 2);
+            targetSets = Math.ceil(rules.setsToWin / 2);
+        }
+
+        if (currentPlayer.legsWon >= targetLegs) {
+            // Le joueur gagne le Set !
+            currentPlayer.setsWon += 1;
+
+            if (currentPlayer.setsWon >= targetSets) {
+                // Le joueur gagne le Match !
+                nextStatus = "finished";
+                winnerId = currentPlayer.id;
+            } else {
+                // Reset de tous les joueurs pour le prochain Set (On repart à 0 legs)
+                players = players.map(p => ({
+                    ...p,
+                    legsWon: 0,
+                    scoreLeft: isNaN(parseInt(match.game_type)) ? 0 : parseInt(match.game_type),
+                    ...(match.game_type === "cricket" ? {
+                        cricketMarks: { 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 25: 0 },
+                        cricketPoints: 0
+                    } : {})
+                }));
+            }
         } else {
-            // Reset du leg
+            // Reset du leg (Set toujours en cours)
             const baseScore = parseInt(match.game_type);
             players = players.map(p => ({
                 ...p,
@@ -215,9 +256,6 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                 } : {})
             }));
 
-            // Celui qui a commencé le leg précédent laisse la main.
-            // On peut simplifier : Le gagnant commence, ou alternance. Par convention, on va dire alternance du premier lanceur.
-            // (Pour l'instant, disons que le perdant commence au prochain ou on tourne simplement).
             let totalLegsPlayed = players.reduce((sum, p) => sum + p.legsWon, 0);
             nextPlayerIndex = totalLegsPlayed % players.length;
         }

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, ArrowLeft, RotateCcw, Crosshair, Crown } from "lucide-react"
+import { Loader2, ArrowLeft, RotateCcw, Crosshair, Crown, Copy, UserPlus, Play } from "lucide-react"
 import { MatchState, PlayerState, getCheckoutSuggestion } from "@/lib/darts-engine"
 import { supabase } from "@/lib/supabase-client"
 
@@ -20,6 +20,13 @@ export default function DartsLiveMatchPage() {
     const [currentDarts, setCurrentDarts] = useState<{ value: number, multiplier: number }[]>([])
     const [multiplier, setMultiplier] = useState<1 | 2 | 3>(1)
     const [submitting, setSubmitting] = useState(false)
+    const [currentUser, setCurrentUser] = useState<any>(null)
+
+    useEffect(() => {
+        fetch("/api/auth/user")
+            .then(res => res.ok ? res.json() : null)
+            .then(data => setCurrentUser(data?.user || data))
+    }, [])
 
     // Load Match Real Time
     const fetchMatch = useCallback(async () => {
@@ -84,7 +91,7 @@ export default function DartsLiveMatchPage() {
         if (match.gameType !== "cricket") {
             if (remaining < 0) {
                 shouldAutoSubmit = true;
-            } else if (match.rules.outRule === 'double') {
+            } else if (match.rules?.outRule === 'double') {
                 if (remaining === 1) shouldAutoSubmit = true;
                 if (remaining === 0) {
                     const lastDart = newDarts[newDarts.length - 1];
@@ -152,6 +159,38 @@ export default function DartsLiveMatchPage() {
         }
     }
 
+    const handleJoin = async () => {
+        try {
+            const res = await fetch(`/api/darts/matches/${matchId}/join`, { method: "POST" })
+            if (res.ok) fetchMatch()
+            else {
+                const data = await res.json()
+                alert(data.error || "Erreur lors de la jointure")
+            }
+        } catch {
+            alert("Erreur réseau")
+        }
+    }
+
+    const handleStart = async () => {
+        try {
+            const res = await fetch(`/api/darts/matches/${matchId}/start`, { method: "POST" })
+            if (res.ok) fetchMatch()
+            else {
+                const data = await res.json()
+                alert(data.error || "Erreur lors du lancement")
+            }
+        } catch {
+            alert("Erreur réseau")
+        }
+    }
+
+    const copyInviteLink = () => {
+        const url = window.location.href
+        navigator.clipboard.writeText(url)
+        alert("Lien d'invitation copié !")
+    }
+
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-red-500" /></div>
     if (error || !match) return <div className="text-center py-20 text-red-500 font-bold">{error}</div>
 
@@ -178,13 +217,64 @@ export default function DartsLiveMatchPage() {
                         {match.gameType} <span className="text-white">Darts</span>
                     </h1>
                     <p className="text-xs text-muted-foreground font-mono">
-                        Premier à <span className="text-white">{match.rules.legsToWin} Legs</span> • {match.rules.outRule.toUpperCase()} OUT
+                        {match.rules.matchFormat === 'best_of' ? 'Best of' : 'Premier à'} <span className="text-white">{match.rules.setsToWin} Sets, {match.rules.legsToWin} Legs</span>
+                        {match.gameType === 'cricket'
+                            ? (match.rules.cricketMode === 'cut_throat' ? ' • CUT-THROAT' : ' • NORMAL')
+                            : (match.rules.outRule ? ` • ${match.rules.outRule.toUpperCase()} OUT` : '')}
                     </p>
                 </div>
                 <div className="w-24"></div> {/* Spacer to center title */}
             </div>
 
-            {isFinished ? (
+            {match.status === "setup" ? (
+                <Card className="max-w-md mx-auto border-red-500/20 bg-card/50 shadow-2xl">
+                    <CardHeader className="text-center">
+                        <div className="mx-auto w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                            <UserPlus className="w-8 h-8 text-red-500 animate-pulse" />
+                        </div>
+                        <CardTitle className="text-2xl font-black uppercase tracking-widest">Salle d'Attente</CardTitle>
+                        <CardDescription>Match en ligne • {match.gameType}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-bold uppercase text-muted-foreground tracking-tighter">Joueurs Connectés ({match.players.length})</h3>
+                            <div className="space-y-2">
+                                {match.players.map((p, i) => (
+                                    <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
+                                                {i + 1}
+                                            </div>
+                                            <span className="font-semibold">{p.name}</span>
+                                        </div>
+                                        {p.id === match.creatorId && <Badge variant="outline" className="text-[10px] border-red-500/30 text-red-500">Host</Badge>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-muted/30 border border-dashed border-border text-center space-y-3">
+                            <p className="text-sm text-muted-foreground">Invite tes amis à rejoindre via ce lien :</p>
+                            <Button variant="outline" size="sm" className="w-full font-mono text-xs" onClick={copyInviteLink}>
+                                <Copy className="w-3 h-3 mr-2" /> Copier le lien
+                            </Button>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex flex-col gap-3">
+                        {!match.players.find(p => p.id === currentUser?.id) && (
+                            <Button className="w-full bg-red-600 hover:bg-red-500 text-white font-bold h-12" onClick={handleJoin}>
+                                <UserPlus className="w-5 h-5 mr-2" /> REJOINDRE LA PARTIE
+                            </Button>
+                        )}
+                        {match.creatorId === currentUser?.id && (
+                            <Button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12" onClick={handleStart} disabled={match.players.length < 1}>
+                                <Play className="w-5 h-5 mr-2" /> LANCER LE MATCH
+                            </Button>
+                        )}
+                        <p className="text-[10px] text-center text-muted-foreground italic">En attente du lancement par l'hôte...</p>
+                    </CardFooter>
+                </Card>
+            ) : isFinished ? (
                 <Card className="border-yellow-500/50 bg-yellow-500/10 shadow-lg shadow-yellow-500/20 max-w-2xl mx-auto">
                     <CardHeader className="text-center">
                         <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
@@ -197,6 +287,7 @@ export default function DartsLiveMatchPage() {
                                 <div key={p.id} className={`p-4 rounded-xl border ${p.id === match.winnerId ? 'border-yellow-500/50 bg-yellow-500/20' : 'border-border bg-muted/50'}`}>
                                     <p className="font-bold text-center mb-2">{p.name}</p>
                                     <div className="text-sm space-y-1">
+                                        {match.rules.setsToWin > 1 && <div className="flex justify-between"><span>Sets:</span> <strong className="text-yellow-500">{p.setsWon}</strong></div>}
                                         <div className="flex justify-between"><span>Legs:</span> <strong>{p.legsWon}</strong></div>
                                         <div className="flex justify-between"><span>Moy (3 fl.):</span> <strong>{p.stats.dartsThrown > 0 ? ((p.stats.totalScore / p.stats.dartsThrown) * 3).toFixed(1) : 0}</strong></div>
                                         <div className="flex justify-between"><span>Max Finish:</span> <strong>{p.stats.highestCheckout}</strong></div>
@@ -266,14 +357,14 @@ export default function DartsLiveMatchPage() {
                                                     </div>
                                                     <div className="flex justify-center gap-6 text-sm">
                                                         <Badge variant="outline" className={`${isActive ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''} font-mono px-3 py-1 cursor-default text-base`}>
-                                                            L {p.legsWon}
+                                                            <p className="text-red-300/80 font-medium">RESTE</p>
                                                         </Badge>
-                                                        <div className="flex flex-col text-[10px] text-muted-foreground font-semibold">
-                                                            <span>MOY</span>
-                                                            <span className="text-sm font-mono text-white">
-                                                                {p.stats.dartsThrown > 0 ? ((p.stats.totalScore / p.stats.dartsThrown) * 3).toFixed(1) : "0.0"}
-                                                            </span>
-                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center text-sm font-semibold mb-2 text-muted-foreground bg-black/20 p-2 rounded-md mt-4">
+                                                        {match.rules.setsToWin > 1 && <span className="flex-1 text-center border-r border-border/50">Sets: <span className="text-white">{p.setsWon}</span></span>}
+                                                        <span className="flex-1 text-center border-r border-border/50">Legs: <span className="text-white">{p.legsWon}</span></span>
+                                                        <span className="flex-1 text-center">Avg: <span className="text-white">{(p.stats.totalScore / Math.max(1, p.stats.dartsThrown) * 3).toFixed(1)}</span></span>
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -418,7 +509,8 @@ export default function DartsLiveMatchPage() {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     )
 }

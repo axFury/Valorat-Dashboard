@@ -45,6 +45,22 @@
       "namedRegex": "^/api/darts/matches/(?<nxtPmatchId>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/darts/matches/[matchId]/join",
+      "regex": "^/api/darts/matches/([^/]+?)/join(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/api/darts/matches/(?<nxtPmatchId>[^/]+?)/join(?:/)?$"
+    },
+    {
+      "page": "/api/darts/matches/[matchId]/start",
+      "regex": "^/api/darts/matches/([^/]+?)/start(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/api/darts/matches/(?<nxtPmatchId>[^/]+?)/start(?:/)?$"
+    },
+    {
       "page": "/api/darts/matches/[matchId]/throw",
       "regex": "^/api/darts/matches/([^/]+?)/throw(?:/)?$",
       "routeKeys": {

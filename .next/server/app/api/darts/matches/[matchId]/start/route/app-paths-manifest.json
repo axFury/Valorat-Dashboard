@@ -1,0 +1,3 @@
+{
+  "/api/darts/matches/[matchId]/start/route": "app/api/darts/matches/[matchId]/start/route.js"
+}
