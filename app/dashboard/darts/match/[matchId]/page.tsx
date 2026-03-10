@@ -136,9 +136,9 @@ export default function DartsLiveMatchPage() {
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-red-500" /></div>
     if (error || !match) return <div className="text-center py-20 text-red-500 font-bold">{error}</div>
 
-    const suggestion = activePlayer ? getCheckoutSuggestion(activePlayer.scoreLeft) : null
     const isFinished = match.status === "finished"
     const currentTurnScore = currentDarts.reduce((sum, d) => sum + (d.value * d.multiplier), 0);
+    const suggestion = activePlayer ? getCheckoutSuggestion(activePlayer.scoreLeft - currentTurnScore) : null
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">

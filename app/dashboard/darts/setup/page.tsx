@@ -131,7 +131,7 @@ export default function DartsSetupPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="local">Local (Même écran)</SelectItem>
-                                    <SelectItem value="online" disabled>En Ligne (Bientôt)</SelectItem>
+                                    <SelectItem value="online">En Ligne</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

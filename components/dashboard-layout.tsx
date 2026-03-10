@@ -158,6 +158,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     router.push("/")
   }
 
+  // Fullscreen mode for live matches
+  if (pathname.startsWith('/dashboard/darts/match/')) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
