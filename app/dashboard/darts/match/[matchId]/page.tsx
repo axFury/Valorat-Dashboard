@@ -217,7 +217,13 @@ export default function DartsLiveMatchPage() {
                         {match.gameType} <span className="text-white">Darts</span>
                     </h1>
                     <p className="text-xs text-muted-foreground font-mono">
-                        {match.rules.matchFormat === 'best_of' ? 'Best of' : 'Premier à'} <span className="text-white">{match.rules.setsToWin} Sets, {match.rules.legsToWin} Legs</span>
+                        {match.rules.setsToWin === 1 && match.rules.legsToWin === 1 ? (
+                            'Manche Unique'
+                        ) : (
+                            <>
+                                {match.rules.matchFormat === 'best_of' ? 'Best of' : 'Premier à'} <span className="text-white">{match.rules.setsToWin} Set{match.rules.setsToWin > 1 ? 's' : ''}, {match.rules.legsToWin} Leg{match.rules.legsToWin > 1 ? 's' : ''}</span>
+                            </>
+                        )}
                         {match.gameType === 'cricket'
                             ? (match.rules.cricketMode === 'cut_throat' ? ' • CUT-THROAT' : ' • NORMAL')
                             : (match.rules.outRule ? ` • ${match.rules.outRule.toUpperCase()} OUT` : '')}

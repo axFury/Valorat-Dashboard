@@ -84,7 +84,9 @@ export default function DartsSetupPage() {
                         matchFormat,
                         legsToWin: parseInt(legs, 10),
                         setsToWin: parseInt(sets, 10),
-                        ...(gameType === "cricket" ? { cricketMode } : { inRule, outRule })
+                        ...(gameType === "cricket"
+                            ? { cricketMode }
+                            : { inRule, outRule })
                     },
                     players
                 })

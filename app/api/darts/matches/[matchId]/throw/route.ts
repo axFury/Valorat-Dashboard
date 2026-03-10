@@ -278,46 +278,34 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
 
     // 5. Si match gagné, update stats global
     if (nextStatus === "finished" && winnerId) {
-        // En vrai: Insérer/Updater `darts_stats` pour chaque user discord (pas guest).
         for (const p of players) {
             if (!p.isGuest) {
-                // Upsert les stats
-                // Note : On pourrait le faire dans un script en "background" pour ne pas bloquer l'appel.
-                const { data: existingStats } = await supa.from("darts_stats")
+                // Fetch current stats to calculate new values
+                const { data: current } = await supa.from("darts_stats")
                     .select("*")
                     .eq("guild_id", match.guild_id)
                     .eq("user_id", p.id)
                     .single();
 
-                if (existingStats) {
-                    await supa.from("darts_stats").update({
-                        matches_played: existingStats.matches_played + 1,
-                        matches_won: existingStats.matches_won + (p.id === winnerId ? 1 : 0),
-                        darts_thrown: existingStats.darts_thrown + p.stats.dartsThrown,
-                        total_score: existingStats.total_score + p.stats.totalScore,
-                        highest_checkout: Math.max(existingStats.highest_checkout, p.stats.highestCheckout),
-                        count_180s: existingStats.count_180s + p.stats.count180,
-                        count_140s: existingStats.count_140s + p.stats.count140,
-                        count_100s: existingStats.count_100s + p.stats.count100,
-                        cricket_marks: (existingStats.cricket_marks || 0) + (p.stats.cricketMarks || 0),
-                        misses: (existingStats.misses || 0) + (p.stats.misses || 0),
-                    }).eq("user_id", p.id).eq("guild_id", match.guild_id);
-                } else {
-                    await supa.from("darts_stats").insert([{
-                        user_id: p.id,
-                        guild_id: match.guild_id,
-                        matches_played: 1,
-                        matches_won: (p.id === winnerId ? 1 : 0),
-                        darts_thrown: p.stats.dartsThrown,
-                        total_score: p.stats.totalScore,
-                        highest_checkout: p.stats.highestCheckout,
-                        count_180s: p.stats.count180,
-                        count_140s: p.stats.count140,
-                        count_100s: p.stats.count100,
-                        cricket_marks: p.stats.cricketMarks || 0,
-                        misses: p.stats.misses || 0
-                    }]);
-                }
+                const isWinner = p.id === winnerId;
+
+                const statsToUpsert = {
+                    user_id: p.id,
+                    guild_id: match.guild_id,
+                    matches_played: (current?.matches_played || 0) + 1,
+                    matches_won: (current?.matches_won || 0) + (isWinner ? 1 : 0),
+                    darts_thrown: (current?.darts_thrown || 0) + p.stats.dartsThrown,
+                    total_score: (current?.total_score || 0) + p.stats.totalScore,
+                    highest_checkout: Math.max((current?.highest_checkout || 0), p.stats.highestCheckout),
+                    count_180s: (current?.count_180s || 0) + p.stats.count180,
+                    count_140s: (current?.count_140s || 0) + p.stats.count140,
+                    count_100s: (current?.count_100s || 0) + p.stats.count100,
+                    cricket_marks: (current?.cricket_marks || 0) + (p.stats.cricketMarks || 0),
+                    misses: (current?.misses || 0) + (p.stats.misses || 0),
+                    updated_at: new Date().toISOString()
+                };
+
+                await supa.from("darts_stats").upsert(statsToUpsert, { onConflict: "user_id,guild_id" });
             }
         }
     }
