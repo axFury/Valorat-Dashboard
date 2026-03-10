@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const isCricket = gameType === "cricket";
     const startingScore = parseInt(gameType); // "501" -> 501, "301" -> 301
-    const actualStartingScore = isNaN(startingScore) ? 0 : startingScore; // For Cricket it's 0 usually
+    const actualStartingScore = isNaN(startingScore) || isCricket ? 0 : startingScore;
 
     // Transform initial players into PlayerState
     const initialPlayers: PlayerState[] = players.map((p: any) => ({
@@ -40,6 +41,10 @@ export async function POST(req: NextRequest) {
         scoreLeft: actualStartingScore,
         legsWon: 0,
         setsWon: 0,
+        ...(isCricket ? {
+            cricketMarks: { 15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 25: 0 },
+            cricketPoints: 0
+        } : {}),
         stats: {
             dartsThrown: 0,
             totalScore: 0,
@@ -47,7 +52,9 @@ export async function POST(req: NextRequest) {
             count180: 0,
             count140: 0,
             count100: 0,
-            bestTurn: 0
+            bestTurn: 0,
+            misses: 0,
+            cricketMarks: 0
         },
         isGuest: p.isGuest
     }));

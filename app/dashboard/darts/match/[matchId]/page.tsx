@@ -80,25 +80,26 @@ export default function DartsLiveMatchPage() {
         let shouldAutoSubmit = false;
         let isCheckout = false;
 
-        // BUST detection
-        if (remaining < 0) {
-            shouldAutoSubmit = true;
-        } else if (match.rules.outRule === 'double') {
-            if (remaining === 1) shouldAutoSubmit = true;
-            if (remaining === 0) {
-                // Must finish on a double (or Bullseye which is D25 logically, mapped as value 50 or multiplier 2 value 25)
-                const lastDart = newDarts[newDarts.length - 1];
-                const isDouble = lastDart.multiplier === 2 || lastDart.value === 50;
-                if (!isDouble) {
-                    shouldAutoSubmit = true; // Bust because finished on single
-                } else {
-                    isCheckout = true;
-                    shouldAutoSubmit = true; // WIN
+        // BUST detection (Seulement pour x01)
+        if (match.gameType !== "cricket") {
+            if (remaining < 0) {
+                shouldAutoSubmit = true;
+            } else if (match.rules.outRule === 'double') {
+                if (remaining === 1) shouldAutoSubmit = true;
+                if (remaining === 0) {
+                    const lastDart = newDarts[newDarts.length - 1];
+                    const isDouble = lastDart.multiplier === 2 || lastDart.value === 50;
+                    if (!isDouble) {
+                        shouldAutoSubmit = true;
+                    } else {
+                        isCheckout = true;
+                        shouldAutoSubmit = true;
+                    }
                 }
+            } else if (remaining === 0) {
+                isCheckout = true;
+                shouldAutoSubmit = true;
             }
-        } else if (remaining === 0) {
-            isCheckout = true;
-            shouldAutoSubmit = true; // WIN (straight out)
         }
 
         // 3 Darts thrown
@@ -155,7 +156,14 @@ export default function DartsLiveMatchPage() {
 
     const isFinished = match.status === "finished"
     const currentTurnScore = currentDarts.reduce((sum, d) => sum + (d.value * d.multiplier), 0);
-    const suggestion = activePlayer ? getCheckoutSuggestion(activePlayer.scoreLeft - currentTurnScore) : null
+    const suggestion = activePlayer && match.gameType !== "cricket" ? getCheckoutSuggestion(activePlayer.scoreLeft - currentTurnScore) : null
+
+    const renderCricketMark = (marks: number = 0) => {
+        if (marks === 0) return <span className="text-muted-foreground/30 text-2xl">-</span>;
+        if (marks === 1) return <span className="text-white text-2xl">/</span>;
+        if (marks === 2) return <span className="text-white text-2xl font-black">X</span>;
+        return <div className="relative flex items-center justify-center w-8 h-8"><span className="text-white text-2xl font-black absolute">X</span><div className="w-8 h-8 rounded-full border-2 border-white absolute"></div></div>;
+    }
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -206,57 +214,91 @@ export default function DartsLiveMatchPage() {
                 <div className="grid lg:grid-cols-12 gap-6">
                     {/* Left Column : Scoreboard */}
                     <div className="lg:col-span-8 space-y-4">
-                        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(match.players.length, 2)}, minmax(0, 1fr))` }}>
-                            {match.players.map((p, idx) => {
-                                const isActive = idx === match.currentPlayerIndex;
-                                return (
-                                    <Card key={p.id} className={`transition-all duration-300 ${isActive ? 'ring-2 ring-red-500 scale-[1.02] shadow-xl shadow-red-500/20 bg-gradient-to-b from-card to-red-500/10' : 'border-border bg-muted/30 opacity-70'}`}>
-                                        <CardContent className="p-6 relative">
-                                            {isActive && <div className="absolute top-2 right-2 flex gap-1">
-                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-75"></div>
-                                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-150"></div>
-                                            </div>}
-                                            <div className="text-center space-y-4">
-                                                <h3 className="font-bold text-lg text-muted-foreground uppercase tracking-widest">{p.name}</h3>
-                                                <div className="flex items-center justify-center font-mono">
-                                                    <span className={`text-7xl font-black ${isActive ? 'text-white' : 'text-white/50'}`}>
-                                                        {p.scoreLeft}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-center gap-6 text-sm">
-                                                    <Badge variant="outline" className={`${isActive ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''} font-mono px-3 py-1 cursor-default text-base`}>
-                                                        L {p.legsWon}
-                                                    </Badge>
-                                                    <div className="flex flex-col text-[10px] text-muted-foreground font-semibold">
-                                                        <span>MOY</span>
-                                                        <span className="text-sm font-mono text-white">
-                                                            {p.stats.dartsThrown > 0 ? ((p.stats.totalScore / p.stats.dartsThrown) * 3).toFixed(1) : "0.0"}
+                        {match.gameType === "cricket" ? (
+                            <Card className="border-border bg-card/50 shadow-xl overflow-hidden mb-4">
+                                <div className="grid grid-cols-12 bg-black/40 text-sm font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                                    <div className="col-span-5 text-center p-3 truncate border-r border-border">{match.players[0]?.name || "J1"}</div>
+                                    <div className="col-span-2 text-center p-3">Cible</div>
+                                    {match.players[1] && <div className="col-span-5 text-center p-3 truncate border-l border-border">{match.players[1].name}</div>}
+                                </div>
+
+                                <div className="grid grid-cols-12 bg-muted/10 text-xl font-black border-b border-border shadow-inner">
+                                    <div className={`col-span-5 text-center p-3 text-red-400 border-r border-border ${match.currentPlayerIndex === 0 ? 'bg-red-500/10' : ''}`}>{match.players[0]?.scoreLeft || 0} PTS</div>
+                                    <div className="col-span-2 text-center p-3 text-sm text-muted-foreground">SCORE</div>
+                                    {match.players[1] && <div className={`col-span-5 text-center p-3 text-red-400 border-l border-border ${match.currentPlayerIndex === 1 ? 'bg-red-500/10' : ''}`}>{match.players[1].scoreLeft || 0} PTS</div>}
+                                </div>
+
+                                {[20, 19, 18, 17, 16, 15, 25].map(target => (
+                                    <div key={target} className="grid grid-cols-12 border-b border-border/50 hover:bg-muted/30 transition-colors">
+                                        <div className="col-span-5 flex items-center justify-center p-2 border-r border-border/50">
+                                            {renderCricketMark(match.players[0]?.cricketMarks?.[target])}
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-center bg-black/20 font-black text-lg p-2">
+                                            {target === 25 ? 'BULL' : target}
+                                        </div>
+                                        {match.players[1] && (
+                                            <div className="col-span-5 flex items-center justify-center p-2 border-l border-border/50">
+                                                {renderCricketMark(match.players[1]?.cricketMarks?.[target])}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </Card>
+                        ) : (
+                            <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(match.players.length, 2)}, minmax(0, 1fr))` }}>
+                                {match.players.map((p, idx) => {
+                                    const isActive = idx === match.currentPlayerIndex;
+                                    return (
+                                        <Card key={p.id} className={`transition-all duration-300 ${isActive ? 'ring-2 ring-red-500 scale-[1.02] shadow-xl shadow-red-500/20 bg-gradient-to-b from-card to-red-500/10' : 'border-border bg-muted/30 opacity-70'}`}>
+                                            <CardContent className="p-6 relative">
+                                                {isActive && <div className="absolute top-2 right-2 flex gap-1">
+                                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-75"></div>
+                                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse delay-150"></div>
+                                                </div>}
+                                                <div className="text-center space-y-4">
+                                                    <h3 className="font-bold text-lg text-muted-foreground uppercase tracking-widest">{p.name}</h3>
+                                                    <div className="flex items-center justify-center font-mono">
+                                                        <span className={`text-7xl font-black ${isActive ? 'text-white' : 'text-white/50'}`}>
+                                                            {p.scoreLeft}
                                                         </span>
                                                     </div>
+                                                    <div className="flex justify-center gap-6 text-sm">
+                                                        <Badge variant="outline" className={`${isActive ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''} font-mono px-3 py-1 cursor-default text-base`}>
+                                                            L {p.legsWon}
+                                                        </Badge>
+                                                        <div className="flex flex-col text-[10px] text-muted-foreground font-semibold">
+                                                            <span>MOY</span>
+                                                            <span className="text-sm font-mono text-white">
+                                                                {p.stats.dartsThrown > 0 ? ((p.stats.totalScore / p.stats.dartsThrown) * 3).toFixed(1) : "0.0"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )
-                            })}
-                        </div>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
+                            </div>
+                        )}
 
                         {/* Suggestion & Input Viewer */}
                         <Card className="border-red-500/30 bg-red-500/5">
                             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                                <div className="space-y-1 text-center md:text-left">
-                                    <p className="text-sm font-medium text-red-400 uppercase tracking-wider flex items-center justify-center md:justify-start gap-2">
-                                        <Crosshair className="w-4 h-4" /> Suggestion de Finition
-                                    </p>
-                                    <div className="h-8 flex items-center justify-center md:justify-start">
-                                        {suggestion ? (
-                                            <span className="text-2xl font-black font-mono tracking-widest">{suggestion}</span>
-                                        ) : (
-                                            <span className="text-muted-foreground font-mono text-sm">(Aucune)</span>
-                                        )}
+                                {match.gameType !== "cricket" && (
+                                    <div className="space-y-1 text-center md:text-left">
+                                        <p className="text-sm font-medium text-red-400 uppercase tracking-wider flex items-center justify-center md:justify-start gap-2">
+                                            <Crosshair className="w-4 h-4" /> Suggestion de Finition
+                                        </p>
+                                        <div className="h-8 flex items-center justify-center md:justify-start">
+                                            {suggestion ? (
+                                                <span className="text-2xl font-black font-mono tracking-widest">{suggestion}</span>
+                                            ) : (
+                                                <span className="text-muted-foreground font-mono text-sm">(Aucune)</span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <div className="flex items-center gap-2 bg-background px-4 py-2 rounded-xl border border-border shadow-inner min-w-[150px] justify-center text-2xl font-mono font-bold">
                                     {currentDarts.map((d, i) => (
                                         <span key={i} className={d.multiplier === 3 ? "text-red-500" : d.multiplier === 2 ? "text-orange-500" : "text-white"}>

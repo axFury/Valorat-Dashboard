@@ -145,7 +145,7 @@ export default function DartsSetupPage() {
                                 <SelectContent>
                                     <SelectItem value="501">501</SelectItem>
                                     <SelectItem value="301">301</SelectItem>
-                                    <SelectItem value="cricket" disabled>Cricket (Bientôt)</SelectItem>
+                                    <SelectItem value="cricket">Cricket</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

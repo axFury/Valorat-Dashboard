@@ -18,6 +18,8 @@ export interface PlayerState {
     scoreLeft: number;
     legsWon: number;
     setsWon: number;
+    cricketMarks?: Record<number, number>; // {15: 0-3, 16: 0-3...}
+    cricketPoints?: number;
     stats: {
         dartsThrown: number;
         totalScore: number;
@@ -26,6 +28,8 @@ export interface PlayerState {
         count140: number;
         count100: number;
         bestTurn: number;
+        misses: number;
+        cricketMarks: number;
     };
     isGuest?: boolean;
 }
