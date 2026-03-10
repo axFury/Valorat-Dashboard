@@ -74,3 +74,27 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, matchId: matchData.id });
 }
+
+export async function GET(req: NextRequest) {
+    const user = await getDiscordUser(req);
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    const guildId = req.nextUrl.searchParams.get("guildId");
+    if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 });
+
+    const supa = getSupa();
+    // Get the last 10 matches for the guild
+    const { data: matches, error } = await supa
+        .from("darts_matches")
+        .select("id, status, game_type, winner_id, created_at, players")
+        .eq("guild_id", guildId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+    if (error) {
+        console.error("Error fetching match history:", error);
+        return NextResponse.json({ error: "Database error" }, { status: 500 });
+    }
+
+    return NextResponse.json(matches || []);
+}

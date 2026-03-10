@@ -37,6 +37,7 @@ const getNavigation = (guildId?: string) => [
   { name: "TCG Arène", href: "/dashboard/tcg/combat", icon: Swords },
   { name: "TCG Boosters", href: "/dashboard/tcg/booster", icon: Package },
   { name: "Casino", href: "/dashboard/casino", icon: Dices },
+  { name: "Fléchettes", href: "/dashboard/darts", icon: Target },
   { name: "Modération", href: "/dashboard/moderation", icon: Shield }, // ← masquée si pas admin
   { name: "Musique", href: "/dashboard/music", icon: Music },
   { name: "Leaderboards", href: "/dashboard/leaderboards", icon: Trophy },
