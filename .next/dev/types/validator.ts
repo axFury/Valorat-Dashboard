@@ -65,6 +65,42 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../app/dashboard/darts/match/[matchId]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/darts/match/[matchId]">> = Specific
+  const handler = {} as typeof import("../../../app/dashboard/darts/match/[matchId]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/dashboard/darts/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/darts">> = Specific
+  const handler = {} as typeof import("../../../app/dashboard/darts/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/dashboard/darts/profile/[userId]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/darts/profile/[userId]">> = Specific
+  const handler = {} as typeof import("../../../app/dashboard/darts/profile/[userId]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/dashboard/darts/setup/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/darts/setup">> = Specific
+  const handler = {} as typeof import("../../../app/dashboard/darts/setup/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../app/dashboard/economy/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/dashboard/economy">> = Specific
@@ -105,6 +141,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends AppPageConfig<"/dashboard">> = Specific
   const handler = {} as typeof import("../../../app/dashboard/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/dashboard/tcg/booster/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/tcg/booster">> = Specific
+  const handler = {} as typeof import("../../../app/dashboard/tcg/booster/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -299,10 +344,73 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../app/api/casino/tcg/ranking/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/casino/tcg/ranking">> = Specific
+  const handler = {} as typeof import("../../../app/api/casino/tcg/ranking/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../app/api/cmd/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/cmd">> = Specific
   const handler = {} as typeof import("../../../app/api/cmd/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/matches/[matchId]/join/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]/join">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/matches/[matchId]/join/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/matches/[matchId]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/matches/[matchId]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/matches/[matchId]/start/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]/start">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/matches/[matchId]/start/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/matches/[matchId]/throw/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches/[matchId]/throw">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/matches/[matchId]/throw/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/matches/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/matches">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/matches/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../app/api/darts/stats/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/stats">> = Specific
+  const handler = {} as typeof import("../../../app/api/darts/stats/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

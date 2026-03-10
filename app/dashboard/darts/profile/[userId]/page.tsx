@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Target, Trophy, TrendingUp, BarChart2, PieChart, Activity, Calendar, History, ArrowLeft, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, AreaChart, Area, BarChart, Bar, Cell } from "recharts"
 
 export default function DartsProfilePage() {
     const params = useParams()
@@ -38,6 +39,7 @@ export default function DartsProfilePage() {
 
     const adv = stats.advanced_stats || {}
     const dist = adv.score_distribution || {}
+    const history = stats.history || []
 
     const checkoutPct = adv.checkout_attempts > 0
         ? Math.round((adv.checkouts_made / adv.checkout_attempts) * 100)
@@ -50,6 +52,30 @@ export default function DartsProfilePage() {
     const matchAvg = stats.darts_thrown > 0
         ? ((stats.total_score / stats.darts_thrown) * 3).toFixed(1)
         : "0.0"
+
+    // Prepare chart data
+    const chartData = history.map((m: any, idx: number) => ({
+        name: `Match ${idx + 1}`,
+        avg: m.avg,
+        checkout: m.checkout_pct,
+        date: new Date(m.date).toLocaleDateString()
+    }))
+
+    const distData = [
+        { name: '180', value: stats.count_180s || 0, color: '#ef4444' },
+        { name: '140+', value: stats.count_140s || 0, color: '#f97316' },
+        { name: '100+', value: stats.count_100s || 0, color: '#eab308' },
+        { name: '80+', value: dist["80"] || 0, color: '#10b981' },
+        { name: '60+', value: dist["60"] || 0, color: '#0ea5e9' },
+        { name: '40+', value: dist["40"] || 0, color: '#6366f1' },
+    ]
+
+    // Real Metrics
+    const consistency = adv.best_leg && adv.worst_leg
+        ? Math.min(100, Math.max(10, 100 - ((adv.worst_leg - adv.best_leg) * 3)))
+        : 0
+    const precision = Math.min(100, Math.floor(parseFloat(matchAvg) * 0.8))
+    const checkoutMaster = checkoutPct
 
     return (
         <div className="space-y-6 pb-20 max-w-6xl mx-auto">
@@ -64,9 +90,8 @@ export default function DartsProfilePage() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-black tracking-tight">{stats.user_name || "Joueur"}</h1>
-                            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                                <Badge variant="outline" className="text-emerald-400 border-emerald-400/30 bg-emerald-400/5">PRO PLAYER</Badge>
-                                <span className="text-xs uppercase tracking-widest font-bold opacity-50 ml-2">Darts Elite Membership</span>
+                            <p className="text-muted-foreground flex items-center gap-1.5 text-sm uppercase tracking-widest font-bold opacity-50">
+                                Darts Profile Dashboard
                             </p>
                         </div>
                     </div>
@@ -94,39 +119,46 @@ export default function DartsProfilePage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
-                {/* Score Distribution */}
+                {/* Progression Chart */}
                 <Card className="md:col-span-2 border-border bg-card/30">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
-                            <BarChart2 className="w-5 h-5 text-red-500" />
-                            Distribution des Scores
+                            <Activity className="w-5 h-5 text-red-500" />
+                            Progression Moyenne & Checkout
                         </CardTitle>
-                        <CardDescription>Nombre de tours dans chaque palier de points.</CardDescription>
+                        <CardDescription>Evolution de tes performances sur les 20 derniers matchs.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <CountStat label="180" value={stats.count_180s} color="bg-red-500" />
-                            <CountStat label="140+" value={stats.count_140s} color="bg-orange-500" />
-                            <CountStat label="100+" value={stats.count_100s} color="bg-yellow-500" />
-                            <CountStat label="80+" value={dist["80"] || 0} color="bg-emerald-500" />
-                            <CountStat label="60+" value={dist["60"] || 0} color="bg-sky-500" />
-                            <CountStat label="40+" value={dist["40"] || 0} color="bg-indigo-500" />
-                            <CountStat label="Bull" value={stats.cricket_marks || 0} color="bg-purple-500" sub="Marks" />
-                            <CountStat label="Miss" value={stats.misses || 0} color="bg-muted" />
-                        </div>
-
-                        <div className="space-y-3 mt-6">
-                            <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest">Performances Leg</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-xl bg-black/20 border border-border">
-                                    <p className="text-[10px] uppercase text-muted-foreground mb-1">Meilleur Leg</p>
-                                    <p className="text-xl font-bold">{adv.best_leg || "-"} <span className="text-xs text-muted-foreground">darts</span></p>
+                    <CardContent>
+                        <div className="h-[300px] w-full">
+                            {chartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData}>
+                                        <defs>
+                                            <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                            </linearGradient>
+                                            <linearGradient id="colorCO" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                        <XAxis dataKey="name" stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#666" fontSize={10} tickLine={false} axisLine={false} />
+                                        <RechartsTooltip
+                                            contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
+                                            itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                        />
+                                        <Area type="monotone" dataKey="avg" name="Moyenne" stroke="#ef4444" fillOpacity={1} fill="url(#colorAvg)" strokeWidth={3} />
+                                        <Area type="monotone" dataKey="checkout" name="Checkout %" stroke="#10b981" fillOpacity={1} fill="url(#colorCO)" strokeWidth={3} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-muted-foreground">
+                                    Jouez plus de matchs pour voir la progression.
                                 </div>
-                                <div className="p-4 rounded-xl bg-black/20 border border-border">
-                                    <p className="text-[10px] uppercase text-muted-foreground mb-1">Pire Leg</p>
-                                    <p className="text-xl font-bold">{adv.worst_leg || "-"} <span className="text-xs text-muted-foreground">darts</span></p>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -136,32 +168,73 @@ export default function DartsProfilePage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <Activity className="w-5 h-5 text-orange-500" />
-                            Records
+                            Records & Metrics
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <HighlightRow label="Max Score" value={stats.highest_checkout || 0} />
                         <HighlightRow label="Max Start" value={adv.highest_start_score || 0} />
-                        <HighlightRow label="Current Winrate" value={`${stats.matches_played > 0 ? ((stats.matches_won / stats.matches_played) * 100).toFixed(0) : 0}%`} />
                         <HighlightRow label="Matches Played" value={stats.matches_played} />
                         <HighlightRow label="Matches Won" value={stats.matches_won} />
 
                         <div className="pt-4 border-t border-border mt-4">
                             <h4 className="text-xs font-bold uppercase text-muted-foreground mb-4 tracking-widest flex items-center gap-2">
-                                <Calendar className="w-3 h-3" /> Progression
+                                <History className="w-3 h-3" /> Progression Réelle
                             </h4>
                             <div className="space-y-4">
-                                <ProgressRow label="Consistency" value={75} color="bg-red-500" />
-                                <ProgressRow label="Precision" value={60} color="bg-orange-500" />
-                                <ProgressRow label="Checkout Master" value={30} color="bg-emerald-500" />
+                                <ProgressRow label="Consistency" value={consistency} color="bg-red-500" />
+                                <ProgressRow label="Precision" value={precision} color="bg-orange-500" />
+                                <ProgressRow label="Checkout Master" value={checkoutMaster} color="bg-emerald-500" />
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-border mt-4">
+                            <div className="p-4 rounded-xl bg-black/20 border border-border">
+                                <p className="text-[10px] uppercase text-muted-foreground mb-1">Meilleur Leg</p>
+                                <p className="text-xl font-bold">{adv.best_leg || "-"} <span className="text-xs text-muted-foreground">darts</span></p>
                             </div>
                         </div>
                     </CardContent>
-                    <CardFooter>
-                        <Button className="w-full bg-red-600 hover:bg-red-500" onClick={() => window.print()}>
-                            <PieChart className="w-4 h-4 mr-2" /> Exporter PDF
-                        </Button>
-                    </CardFooter>
+                </Card>
+
+                {/* Distribution Chart */}
+                <Card className="md:col-span-3 border-border bg-card/30">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <BarChart2 className="w-5 h-5 text-indigo-500" />
+                            Distribution des Scores (Visualisation)
+                        </CardTitle>
+                        <CardDescription>Fréquence de tes scores par palier de points.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[250px] w-full mt-4">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={distData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                    <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} hide />
+                                    <RechartsTooltip
+                                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
+                                    />
+                                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                        {distData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 mt-6">
+                            {distData.map((item) => (
+                                <div key={item.name} className="text-center p-2 rounded-lg bg-muted/20 border border-border">
+                                    <p className="text-[10px] uppercase font-bold text-muted-foreground">{item.name}</p>
+                                    <p className="text-xl font-black">{item.value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
         </div>
@@ -190,19 +263,6 @@ function StatCard({ icon, label, value, subValue }: any) {
     )
 }
 
-function CountStat({ label, value, color, sub }: any) {
-    return (
-        <div className="p-3 rounded-xl bg-black/40 border border-border text-center group hover:border-white/20 transition-all">
-            <p className="text-[10px] font-black text-muted-foreground mb-2 tracking-tighter uppercase">{label}</p>
-            <p className={`text-2xl font-black mb-2 flex items-center justify-center gap-1 ${value > 0 ? 'text-white' : 'text-white/20'}`}>
-                {value}
-            </p>
-            <div className={`h-1 w-full rounded-full ${color} opacity-20 group-hover:opacity-100 transition-opacity`}></div>
-            {sub && <p className="text-[8px] mt-1 text-muted-foreground uppercase">{sub}</p>}
-        </div>
-    )
-}
-
 function HighlightRow({ label, value }: any) {
     return (
         <div className="flex justify-between items-center group">
@@ -218,7 +278,7 @@ function ProgressRow({ label, value, color }: any) {
         <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
                 <span>{label}</span>
-                <span className="text-muted-foreground">{value}%</span>
+                <span className="text-muted-foreground">{Math.round(value)}%</span>
             </div>
             <Progress value={value} className={`h-1.5 ${color}`} />
         </div>

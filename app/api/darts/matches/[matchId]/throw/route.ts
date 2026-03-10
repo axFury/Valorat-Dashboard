@@ -344,6 +344,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                         worst_leg: worstLeg,
                         highest_start_score: Math.max(adv.highest_start_score || 0, body.isFirstTurn ? totalScore : 0)
                     },
+                    history: [
+                        ...(current?.history || []),
+                        {
+                            match_id: match.id,
+                            date: new Date().toISOString(),
+                            avg: parseFloat(((p.stats.totalScore / p.stats.dartsThrown) * 3).toFixed(1)),
+                            checkout_pct: coAttempts > 0 ? Math.round((coMade / coAttempts) * 100) : 0,
+                            game_type: match.game_type
+                        }
+                    ].slice(-20), // Keep last 20 matches for charts
                     updated_at: new Date().toISOString()
                 };
 
