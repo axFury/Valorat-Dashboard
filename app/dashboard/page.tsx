@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Activity, Clock } from "lucide-react"
+import { Activity, Clock, Layout, Plus, X, GripVertical, Target, Trophy, Coins, Layers, Swords, ArrowUpRight, Filter, Settings2, Sparkles, TrendingUp, Info, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@supabase/supabase-js"
 import { ActivityLog } from "@/components/activity-log"
+import { motion, Reorder, AnimatePresence } from "framer-motion"
+import { Button } from "@/components/ui/button"
 import {
   LineChart,
   Line,
@@ -15,24 +17,35 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  AreaChart,
+  Area,
 } from "recharts"
 
-type GuildSnapshot = {
-  guild_id: string
-  members_total: number
-  members_online: number
-  voice_in_channels: number
-  created_at: string
-}
-type BotStatusRow = {
-  latency_ms: number
-  uptime_ms: number
-  version: string | null
-  created_at: string
+// --- Types ---
+type WidgetType = "valorant" | "darts" | "tcg" | "economy" | "server_stats" | "activity_log" | "bot_status" | "chart_24h"
+
+interface WidgetConfig {
+  id: string
+  type: WidgetType
+  title: string
+  size: "small" | "medium" | "large"
 }
 
+// --- Default Layout ---
+const DEFAULT_WIDGETS: WidgetConfig[] = [
+  { id: "bot-status", type: "bot_status", title: "Statut Système", size: "large" },
+  { id: "server-stats", type: "server_stats", title: "Membres Secours", size: "medium" },
+  { id: "darts-preview", type: "darts", title: "Fléchettes", size: "small" },
+  { id: "tcg-preview", type: "tcg", title: "Ma Collection TCG", size: "small" },
+  { id: "economy-preview", type: "economy", title: "Finance & Bourse", size: "small" },
+  { id: "valorant-preview", type: "valorant", title: "Valorant Rank", size: "small" },
+  { id: "chart-24h", type: "chart_24h", title: "Évolution Serveur", size: "large" },
+  { id: "activity", type: "activity_log", title: "Flux d'Activité", size: "large" },
+]
+
+// --- Utils ---
 function fmtMs(ms?: number | null) {
-  if (!ms && ms !== 0) return "N/A"
+  if (!ms && ms !== 0) return "0s"
   const s = Math.floor(ms / 1000)
   const d = Math.floor(s / 86400)
   const h = Math.floor((s % 86400) / 3600)
@@ -45,6 +58,7 @@ function fmtMs(ms?: number | null) {
   parts.push(`${ss}s`)
   return parts.join(" ")
 }
+
 function timeAgo(iso?: string) {
   if (!iso) return "—"
   const diff = Date.now() - new Date(iso).getTime()
@@ -57,267 +71,329 @@ function timeAgo(iso?: string) {
   const d = Math.floor(h / 24)
   return `${d}j`
 }
-function fmtTimeLabel(iso: string) {
-  const d = new Date(iso)
-  const hh = String(d.getHours()).padStart(2, "0")
-  const mm = String(d.getMinutes()).padStart(2, "0")
-  return `${hh}:${mm}`
-}
 
+// --- Dashboard Component ---
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [snapshot, setSnapshot] = useState<GuildSnapshot | null>(null)
-  const [series, setSeries] = useState<any[]>([])
-  const [botStatus, setBotStatus] = useState<BotStatusRow | null>(null)
+  const [widgets, setWidgets] = useState<WidgetConfig[]>([])
+  const [isEditing, setIsEditing] = useState(false)
 
-  const supa = useMemo(
-    () =>
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key'
-      ),
-    []
-  )
+  // Data States
+  const [snapshot, setSnapshot] = useState<any>(null)
+  const [series, setSeries] = useState<any[]>([])
+  const [botStatus, setBotStatus] = useState<any>(null)
+  const [guildId, setGuildId] = useState<string>("")
+
+  const supa = useMemo(() =>
+    createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    ),
+    [])
 
   useEffect(() => {
-    let mounted = true
-    const gid = typeof window !== "undefined" ? localStorage.getItem("selected_guild") : null
+    const gid = typeof window !== "undefined" ? localStorage.getItem("selected_guild") || "" : ""
+    setGuildId(gid)
+
+    // Load layout
+    const saved = localStorage.getItem(`dashboard_layout_${gid}`)
+    if (saved) {
+      setWidgets(JSON.parse(saved))
+    } else {
+      setWidgets(DEFAULT_WIDGETS)
+    }
+
     if (!gid) {
       setLoading(false)
       return
     }
 
     async function init() {
-      // 1) dernier snapshot
-      supa
-        .from("guild_snapshot")
-        .select("*")
-        .eq("guild_id", gid)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .then(({ data }) => {
-          if (!mounted) return
-          setSnapshot((data && data[0]) || null)
-        })
+      // Fetch latest data
+      const { data: snap } = await supa.from("guild_snapshot").select("*").eq("guild_id", gid).order("created_at", { ascending: false }).limit(1)
+      setSnapshot(snap?.[0])
 
-      // 2) série (dernières 24h)
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      supa
-        .from("guild_snapshot")
-        .select("members_total,members_online,voice_in_channels,created_at")
-        .eq("guild_id", gid)
-        .gte("created_at", since)
-        .order("created_at", { ascending: true })
-        .then(({ data }) => {
-          if (!mounted) return
-          const rows =
-            (data || []).map((r) => ({
-              t: r.created_at,
-              total: r.members_total ?? 0,
-              online: r.members_online ?? 0,
-              voice: r.voice_in_channels ?? 0,
-            })) ?? []
-          setSeries(rows)
-        })
+      const { data: hist } = await supa.from("guild_snapshot").select("*").eq("guild_id", gid).gte("created_at", since).order("created_at", { ascending: true })
+      setSeries((hist || []).map(r => ({ t: r.created_at, total: r.members_total, online: r.members_online, voice: r.voice_in_channels })))
 
-      // 3) live updates snapshot + append série
-      const ch1 = supa
-        .channel("snapshots")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "guild_snapshot", filter: `guild_id=eq.${gid}` },
-          (payload) => {
-            const row = payload.new as GuildSnapshot
-            setSnapshot(row)
-            setSeries((prev) => [
-              ...prev.slice(-500), // borne max pour éviter d’alourdir
-              {
-                t: row.created_at,
-                total: row.members_total ?? 0,
-                online: row.members_online ?? 0,
-                voice: row.voice_in_channels ?? 0,
-              },
-            ])
-          }
-        )
-        .subscribe()
+      const { data: bot } = await supa.from("bot_status").select("*").order("created_at", { ascending: false }).limit(1)
+      setBotStatus(bot?.[0])
 
-      // 4) statut bot
-      supa
-        .from("bot_status")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .then(({ data }) => {
-          if (!mounted) return
-          setBotStatus((data && data[0]) || null)
-          setLoading(false)
-        })
-      const ch2 = supa
-        .channel("botstatus")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "bot_status" },
-          (payload) => setBotStatus(payload.new as BotStatusRow)
-        )
-        .subscribe()
-
-      return () => {
-        supa.removeChannel(ch1)
-        supa.removeChannel(ch2)
-      }
+      setLoading(false)
     }
 
     init()
-    return () => {
-      mounted = false
-    }
   }, [supa])
 
-  const isOnline =
-    botStatus && Date.now() - new Date(botStatus.created_at).getTime() < 2 * 60 * 1000
+  const saveLayout = (newWidgets: WidgetConfig[]) => {
+    setWidgets(newWidgets)
+    localStorage.setItem(`dashboard_layout_${guildId}`, JSON.stringify(newWidgets))
+  }
+
+  const isOnline = botStatus && Date.now() - new Date(botStatus.created_at).getTime() < 2 * 60 * 1000
+
+  // --- Widget Renderers ---
+  const renderWidget = (widget: WidgetConfig) => {
+    const commonClass = cn(
+      "relative group border border-white/5 bg-[#121722]/40 backdrop-blur-md rounded-2xl overflow-hidden transition-all duration-300",
+      isEditing ? "ring-2 ring-blue-500/50 scale-[0.98] cursor-grab active:cursor-grabbing" : "hover:border-white/10 hover:shadow-2xl hover:shadow-black/20"
+    )
+
+    const header = (icon: any, color: string) => (
+      <div className="flex items-center justify-between p-4 pb-0">
+        <div className="flex items-center gap-2">
+          <div className={cn("p-1.5 rounded-lg bg-white/5", color)}>{icon}</div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/40">{widget.title}</span>
+        </div>
+        {isEditing && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-red-500/20 text-white/20 hover:text-red-500" onClick={() => saveLayout(widgets.filter(w => w.id !== widget.id))}>
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    )
+
+    switch (widget.type) {
+      case "bot_status":
+        return (
+          <div className={cn(commonClass, "col-span-full")}>
+            {header(<Activity className="h-4 w-4" />, "text-blue-400")}
+            <div className="p-6 pt-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatusItem label="Statut" value={isOnline ? "Opérationnel" : "Déconnecté"} sub={botStatus ? `Signal: ${timeAgo(botStatus.created_at)}` : "N/A"} dot={isOnline ? "bg-green-500" : "bg-red-500"} />
+              <StatusItem label="Latence" value={`${botStatus?.latency_ms ?? 0}ms`} sub={botStatus?.latency_ms < 100 ? "Excellent" : "Stable"} />
+              <StatusItem label="Uptime" value={fmtMs(botStatus?.uptime_ms)} sub="Execution continue" />
+              <StatusItem label="Version" value={botStatus?.version || "1.0.0"} sub="Build stable" />
+            </div>
+          </div>
+        )
+      case "server_stats":
+        return (
+          <div className={cn(commonClass, "md:col-span-2")}>
+            {header(<Users className="h-4 w-4" />, "text-emerald-400")}
+            <div className="p-6 pt-2 h-full">
+              <div className="grid grid-cols-3 gap-4">
+                <SimpleStat label="Total" value={snapshot?.members_total || 0} icon={<Users className="w-4 h-4 opacity-20" />} />
+                <SimpleStat label="Online" value={snapshot?.members_online || 0} color="text-green-400" icon={<div className="w-1.5 h-1.5 rounded-full bg-green-500" />} />
+                <SimpleStat label="Vocal" value={snapshot?.voice_in_channels || 0} color="text-blue-400" icon={<Clock className="w-4 h-4 opacity-20" />} />
+              </div>
+            </div>
+          </div>
+        )
+      case "darts":
+        return (
+          <div className={cn(commonClass)}>
+            {header(<Target className="h-4 w-4" />, "text-orange-500")}
+            <div className="p-6 py-4">
+              <p className="text-2xl font-black">42.5</p>
+              <p className="text-[10px] text-white/30 uppercase font-bold flex items-center gap-1">Average <TrendingUp className="w-3 h-3 text-green-500" /></p>
+              <div className="mt-4 flex gap-1">
+                {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-orange-500 w-2/3" /></div>)}
+              </div>
+            </div>
+          </div>
+        )
+      case "tcg":
+        return (
+          <div className={cn(commonClass)}>
+            {header(<Layers className="h-4 w-4" />, "text-purple-400")}
+            <div className="p-6 py-4">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-2xl font-black">156</p>
+                  <p className="text-[10px] text-white/30 uppercase font-bold">Cartes</p>
+                </div>
+                <div className="h-10 w-8 bg-gradient-to-t from-purple-500 to-indigo-500 rounded-sm rotate-6 shadow-lg shadow-purple-500/20 ring-1 ring-white/20" />
+              </div>
+              <div className="mt-4 text-[10px] bg-purple-500/10 text-purple-400 p-1.5 rounded-lg border border-purple-500/20 text-center font-bold">
+                Dernière: Phantom Sage (Epic)
+              </div>
+            </div>
+          </div>
+        )
+      case "economy":
+        return (
+          <div className={cn(commonClass)}>
+            {header(<Coins className="h-4 w-4" />, "text-amber-400")}
+            <div className="p-6 py-4">
+              <p className="text-2xl font-black">12,450</p>
+              <p className="text-[10px] text-white/30 uppercase font-bold">V-Credits</p>
+              <div className="mt-4 flex items-center justify-between px-2">
+                <div className="flex flex-col items-center"><div className="h-6 w-1.5 bg-white/5 rounded-full relative"><div className="absolute bottom-0 w-full h-1/2 bg-amber-500 rounded-full" /></div><span className="text-[8px] mt-1 opacity-20">L</span></div>
+                <div className="flex flex-col items-center"><div className="h-8 w-1.5 bg-white/5 rounded-full relative"><div className="absolute bottom-0 w-full h-2/3 bg-amber-500 rounded-full" /></div><span className="text-[8px] mt-1 opacity-20">M</span></div>
+                <div className="flex flex-col items-center"><div className="h-10 w-1.5 bg-white/5 rounded-full relative"><div className="absolute bottom-0 w-full h-3/4 bg-amber-500 rounded-full" /></div><span className="text-[8px] mt-1 opacity-20">M</span></div>
+                <div className="flex flex-col items-center"><div className="h-7 w-1.5 bg-white/5 rounded-full relative"><div className="absolute bottom-0 w-full h-1/3 bg-amber-500 rounded-full" /></div><span className="text-[8px] mt-1 opacity-20">J</span></div>
+                <div className="flex flex-col items-center"><div className="h-9 w-1.5 bg-white/5 rounded-full relative"><div className="absolute bottom-0 w-full h-full bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.3)]" /></div><span className="text-[8px] mt-1 text-amber-500">V</span></div>
+              </div>
+            </div>
+          </div>
+        )
+      case "valorant":
+        return (
+          <div className={cn(commonClass)}>
+            {header(<Swords className="h-4 w-4" />, "text-red-500")}
+            <div className="p-6 py-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg shadow-red-500/20">
+                <Target className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <p className="text-xl font-black">Immor. 3</p>
+                <p className="text-[10px] text-white/30 uppercase font-bold">+12 RR</p>
+              </div>
+            </div>
+          </div>
+        )
+      case "chart_24h":
+        return (
+          <div className={cn(commonClass, "col-span-full")}>
+            {header(<TrendingUp className="h-4 w-4" />, "text-blue-500")}
+            <div className="p-6 h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={series}>
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <XAxis dataKey="t" tickFormatter={(t) => new Date(t).getHours() + "h"} stroke="#ffffff20" fontSize={10} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#ffffff20" fontSize={10} axisLine={false} tickLine={false} hide />
+                  <Tooltip contentStyle={{ backgroundColor: '#0b0e13', borderColor: '#ffffff10', borderRadius: '12px' }} itemStyle={{ fontSize: '12px' }} />
+                  <Area type="monotone" dataKey="total" name="Membres" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+                  <Area type="monotone" dataKey="online" name="En ligne" stroke="#10b981" strokeWidth={3} fill="transparent" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )
+      case "activity_log":
+        return (
+          <div className={cn(commonClass, "col-span-full")}>
+            {header(<Clock className="h-4 w-4" />, "text-zinc-400")}
+            <div className="p-6">
+              <ActivityLog guildId={guildId} />
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Vue d'ensemble</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-4xl font-black tracking-tight text-white flex items-center gap-3">
+            <Sparkles className="w-8 h-8 text-red-500 fill-red-500/20" />
+            Vue d'ensemble
+          </h1>
+          <p className="text-muted-foreground mt-1 font-medium">Bienvenue sur votre centre de commandement, <span className="text-white">Capitaine</span>.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant={isEditing ? "default" : "outline"}
+            className={cn("gap-2 rounded-xl h-11 px-6 font-bold transition-all", isEditing ? "bg-blue-600 hover:bg-blue-500" : "bg-white/5 border-white/10 hover:bg-white/10")}
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? <Settings2 className="w-4 h-4" /> : <Layout className="w-4 h-4" />}
+            {isEditing ? "Terminer l'édition" : "Personnaliser"}
+          </Button>
+        </div>
       </div>
 
-      {/* Cartes statut bot */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Statut</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <div
-                className={cn("h-3 w-3 rounded-full", isOnline ? "bg-green-500" : "bg-red-500")}
-              />
-              <p className="text-2xl font-bold">
-                {loading ? "..." : isOnline ? "En ligne" : "Hors ligne"}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Dernier signal: {botStatus ? `${timeAgo(botStatus.created_at)} ago` : "—"}
-            </p>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-40 bg-white/5 rounded-3xl" />)}
+        </div>
+      ) : (
+        <Reorder.Group
+          axis="y"
+          values={widgets}
+          onReorder={saveLayout}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 group/grid"
+        >
+          {widgets.map((widget) => (
+            <Reorder.Item
+              key={widget.id}
+              value={widget}
+              dragListener={isEditing}
+              className={cn(
+                "select-none",
+                widget.size === "medium" && "md:col-span-2",
+                widget.size === "large" && "md:col-span-2 lg:col-span-4"
+              )}
+            >
+              {renderWidget(widget)}
+            </Reorder.Item>
+          ))}
 
-        <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Latence</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{loading ? "..." : `${botStatus?.latency_ms ?? 0}ms`}</p>
-            <p className="text-xs text-muted-foreground">
-              {botStatus && botStatus.latency_ms < 100
-                ? "Excellent"
-                : botStatus && botStatus.latency_ms < 200
-                  ? "Bon"
-                  : "Moyen"}
-            </p>
-          </CardContent>
-        </Card>
+          <AnimatePresence>
+            {isEditing && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex flex-col items-center justify-center gap-3 h-40 border-2 border-dashed border-white/10 rounded-3xl text-white/20 hover:text-white/40 hover:border-white/20 hover:bg-white/5 transition-all"
+                onClick={() => {
+                  // Example: Add a new widget (simplified for demo)
+                  const newId = `widget-${Date.now()}`
+                  saveLayout([...widgets, { id: newId, type: "darts", title: "Nouveau Widget", size: "small" }])
+                }}
+              >
+                <Plus className="w-8 h-8" />
+                <span className="text-xs font-bold uppercase tracking-widest">Ajouter un widget</span>
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </Reorder.Group>
+      )}
 
-        <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Version</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{loading ? "..." : botStatus?.version || "N/A"}</p>
-            <p className="text-xs text-muted-foreground">Build du bot</p>
-          </CardContent>
-        </Card>
+      {/* Quick Access Floating Tip (only when first time) */}
+      {!isEditing && widgets.length < 5 && (
+        <motion.div
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed bottom-8 right-8 bg-blue-600 p-4 rounded-2xl shadow-2xl flex items-center gap-4 z-50 text-white max-w-sm"
+        >
+          <div className="bg-white/20 p-2 rounded-lg"><Info className="w-5 h-5" /></div>
+          <div>
+            <p className="text-sm font-bold">Astuce</p>
+            <p className="text-xs opacity-80">Clique sur "Personnaliser" pour réorganiser tes widgets !</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={(e) => (e.currentTarget.parentElement!.style.display = 'none')}>
+            <X className="w-4 h-4" />
+          </Button>
+        </motion.div>
+      )}
+    </div>
+  )
+}
 
-        <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Uptime</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{loading ? "..." : fmtMs(botStatus?.uptime_ms)}</p>
-            <p className="text-xs text-muted-foreground">Temps en ligne</p>
-          </CardContent>
-        </Card>
+function StatusItem({ label, value, sub, dot }: any) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-[10px] font-bold uppercase text-white/30">{label}</p>
+      <div className="flex items-center gap-2">
+        {dot && <div className={cn("h-2 w-2 rounded-full", dot)} />}
+        <p className="text-xl font-black">{value}</p>
       </div>
+      <p className="text-[10px] text-white/20">{sub}</p>
+    </div>
+  )
+}
 
-      {/* Statistiques serveur (live) */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Statistiques serveur (live)</CardTitle>
-            <CardDescription>
-              {snapshot ? `Snapshot: ${timeAgo(snapshot.created_at)} ago` : "—"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">Membres</p>
-                <p className="mt-1 text-3xl font-bold">
-                  {snapshot?.members_total ?? (loading ? "..." : 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">En ligne</p>
-                <p className="mt-1 text-3xl font-bold">
-                  {snapshot?.members_online ?? (loading ? "..." : 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">En vocal</p>
-                <p className="mt-1 text-3xl font-bold">
-                  {snapshot?.voice_in_channels ?? (loading ? "..." : 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Graphe des 24h */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Évolution (24h)</CardTitle>
-            <CardDescription>Membres total / en ligne / en vocal</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="t"
-                  tickFormatter={fmtTimeLabel}
-                  minTickGap={24}
-                />
-                <YAxis allowDecimals={false} />
-                <Tooltip
-                  formatter={(v: any) => v}
-                  labelFormatter={(l) => new Date(l).toLocaleString()}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="total" name="Membres" strokeOpacity={0.9} dot={false} />
-                <Line type="monotone" dataKey="online" name="En ligne" strokeOpacity={0.9} dot={false} />
-                <Line type="monotone" dataKey="voice" name="En vocal" strokeOpacity={0.9} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+function SimpleStat({ label, value, color, icon }: any) {
+  return (
+    <div className="bg-white/5 p-4 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-black uppercase text-white/30 tracking-tighter">{label}</p>
+        {icon}
       </div>
-
-      {/* Activité récente */}
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle>Activité récente</CardTitle>
-          <CardDescription>Dernières commandes exécutées sur ce serveur</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ActivityLog guildId={typeof window !== "undefined" ? localStorage.getItem("selected_guild") || "" : ""} />
-        </CardContent>
-      </Card>
+      <p className={cn("text-3xl font-black tabular-nums", color || "text-white")}>{value}</p>
     </div>
   )
 }
