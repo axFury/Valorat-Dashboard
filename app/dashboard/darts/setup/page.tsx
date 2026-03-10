@@ -32,8 +32,17 @@ export default function DartsSetupPage() {
     useEffect(() => {
         const gid = typeof window !== "undefined" ? localStorage.getItem("selected_guild") : null
         setGuildId(gid)
-        // Auto-add current user if possible
-        // En vrai, il faudrait récupérer le profil utilisateur (Discord) pour l'ajouter en "vrai" joueur.
+
+        // Auto-add current user
+        fetch("/api/auth/user")
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (data && (data.id || data.user?.id)) {
+                    const user = data.user || data;
+                    setPlayers([{ id: user.id, name: user.username || "Moi", isGuest: false }])
+                }
+            })
+            .catch(() => { })
     }, [])
 
     const addGuestPlayer = () => {

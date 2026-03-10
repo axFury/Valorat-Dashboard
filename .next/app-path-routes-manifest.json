@@ -22,6 +22,7 @@
   "/api/darts/matches/[matchId]/route": "/api/darts/matches/[matchId]",
   "/api/darts/matches/[matchId]/throw/route": "/api/darts/matches/[matchId]/throw",
   "/api/darts/matches/route": "/api/darts/matches",
+  "/api/darts/stats/route": "/api/darts/stats",
   "/api/guilds/[guildId]/channels/route": "/api/guilds/[guildId]/channels",
   "/api/guilds/[guildId]/members/[userId]/route": "/api/guilds/[guildId]/members/[userId]",
   "/api/guilds/[guildId]/members/route": "/api/guilds/[guildId]/members",

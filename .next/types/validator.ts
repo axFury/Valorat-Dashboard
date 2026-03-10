@@ -380,6 +380,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/darts/stats/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/darts/stats">> = Specific
+  const handler = {} as typeof import("../../app/api/darts/stats/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/guilds/[guildId]/channels/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/guilds/[guildId]/channels">> = Specific

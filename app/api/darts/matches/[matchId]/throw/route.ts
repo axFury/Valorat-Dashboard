@@ -8,7 +8,8 @@ function getSupa() {
     return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE!);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { matchId: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ matchId: string }> | { matchId: string } }) {
+    const params = await props.params;
     const body = await req.json();
     const { playerId, totalScore, isCheckout } = body;
     // Pour l'interface mobile, on envoie souvent le total du "Tour" (ex: 100, 140, 180) plutôt que fléchette par fléchette.

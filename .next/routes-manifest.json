@@ -216,6 +216,12 @@
       "namedRegex": "^/api/darts/matches(?:/)?$"
     },
     {
+      "page": "/api/darts/stats",
+      "regex": "^/api/darts/stats(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/darts/stats(?:/)?$"
+    },
+    {
       "page": "/api/guilds",
       "regex": "^/api/guilds(?:/)?$",
       "routeKeys": {},

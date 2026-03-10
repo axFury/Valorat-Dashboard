@@ -22,6 +22,7 @@
   "/api/darts/matches/[matchId]/route": "app/api/darts/matches/[matchId]/route.js",
   "/api/darts/matches/[matchId]/throw/route": "app/api/darts/matches/[matchId]/throw/route.js",
   "/api/darts/matches/route": "app/api/darts/matches/route.js",
+  "/api/darts/stats/route": "app/api/darts/stats/route.js",
   "/api/guilds/[guildId]/channels/route": "app/api/guilds/[guildId]/channels/route.js",
   "/api/guilds/[guildId]/members/[userId]/route": "app/api/guilds/[guildId]/members/[userId]/route.js",
   "/api/guilds/[guildId]/members/route": "app/api/guilds/[guildId]/members/route.js",
