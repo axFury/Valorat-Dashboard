@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Target, Trophy, Clock, Plus, BarChart2 } from "lucide-react"
+import { Target, Trophy, Clock, Plus, BarChart2, User } from "lucide-react"
 import Link from "next/link"
 
 export default function DartsDashboardPage() {
@@ -12,6 +12,7 @@ export default function DartsDashboardPage() {
     const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState<any>(null)
     const [matches, setMatches] = useState<any[]>([])
+    const [user, setUser] = useState<any>(null)
 
     useEffect(() => {
         const gid = typeof window !== "undefined" ? localStorage.getItem("selected_guild") : null
@@ -20,10 +21,12 @@ export default function DartsDashboardPage() {
         if (gid) {
             Promise.all([
                 fetch(`/api/darts/stats?guildId=${gid}`).then(res => res.ok ? res.json() : null),
-                fetch(`/api/darts/matches?guildId=${gid}`).then(res => res.ok ? res.json() : [])
-            ]).then(([statsData, matchesData]) => {
+                fetch(`/api/darts/matches?guildId=${gid}`).then(res => res.ok ? res.json() : []),
+                fetch(`/api/auth/user`).then(res => res.ok ? res.json() : null)
+            ]).then(([statsData, matchesData, userData]) => {
                 setStats(statsData)
                 setMatches(matchesData)
+                setUser(userData?.user || userData)
                 setLoading(false)
             }).catch(() => setLoading(false))
         } else {
@@ -66,6 +69,13 @@ export default function DartsDashboardPage() {
                             <Plus className="mr-2 h-4 w-4" /> Nouvelle Partie
                         </Button>
                     </Link>
+                    {user && (
+                        <Link href={`/dashboard/darts/profile/${user.id}`}>
+                            <Button variant="outline" className="border-border hover:bg-muted">
+                                <User className="mr-2 h-4 w-4" /> Mon Profil
+                            </Button>
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -150,6 +160,15 @@ export default function DartsDashboardPage() {
                                 <p className="text-[10px] text-muted-foreground mb-1 uppercase font-semibold">Moy. 3 Fléchettes</p>
                                 <p className="text-xl font-bold text-red-400">{avg3Darts}</p>
                             </div>
+                        </div>
+                        <div className="pt-2">
+                            {user && (
+                                <Link href={`/dashboard/darts/profile/${user.id}`}>
+                                    <Button className="w-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border-none font-bold">
+                                        Voir profil complet
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
