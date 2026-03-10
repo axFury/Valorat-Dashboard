@@ -155,14 +155,14 @@ export default function DartsSetupPage() {
                             </Select>
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Format</Label>
                                 <Select value={matchFormat} onValueChange={setMatchFormat}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="first_to">First To (Premier à)</SelectItem>
-                                        <SelectItem value="best_of">Best Of (Meilleur des)</SelectItem>
+                                        <SelectItem value="first_to">First To</SelectItem>
+                                        <SelectItem value="best_of">Best Of</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

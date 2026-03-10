@@ -39,6 +39,7 @@
   "/dashboard/casino/page": "app/dashboard/casino/page.js",
   "/dashboard/darts/match/[matchId]/page": "app/dashboard/darts/match/[matchId]/page.js",
   "/dashboard/darts/page": "app/dashboard/darts/page.js",
+  "/dashboard/darts/profile/[userId]/page": "app/dashboard/darts/profile/[userId]/page.js",
   "/dashboard/darts/setup/page": "app/dashboard/darts/setup/page.js",
   "/dashboard/economy/page": "app/dashboard/economy/page.js",
   "/dashboard/leaderboards/page": "app/dashboard/leaderboards/page.js",

@@ -141,7 +141,10 @@ export default function DartsLiveMatchPage() {
                     darts: dartsToSubmit,
                     totalScore: totalScore,
                     isCheckout: checkout,
-                    dartsThrown: dartsThrown
+                    dartsThrown: dartsThrown,
+                    first9Score: activePlayer.stats.dartsThrown < 9 ? totalScore : undefined,
+                    isFirstTurn: activePlayer.stats.dartsThrown === 0,
+                    checkoutAttempt: (activePlayer.scoreLeft <= 170 && !checkout) || checkout // Simplfied check
                 })
             })
             const data = await res.json()

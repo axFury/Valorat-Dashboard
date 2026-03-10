@@ -39,6 +39,7 @@
   "/dashboard/casino/page": "/dashboard/casino",
   "/dashboard/darts/match/[matchId]/page": "/dashboard/darts/match/[matchId]",
   "/dashboard/darts/page": "/dashboard/darts",
+  "/dashboard/darts/profile/[userId]/page": "/dashboard/darts/profile/[userId]",
   "/dashboard/darts/setup/page": "/dashboard/darts/setup",
   "/dashboard/economy/page": "/dashboard/economy",
   "/dashboard/leaderboards/page": "/dashboard/leaderboards",

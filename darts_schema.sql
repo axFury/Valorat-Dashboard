@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS public.darts_stats (
     count_100s INTEGER DEFAULT 0,
     cricket_marks INTEGER DEFAULT 0,
     misses INTEGER DEFAULT 0,
+    advanced_stats JSONB DEFAULT '{}', -- Detailed stats (paliers, checkout %, heatmaps, etc.)
+    history JSONB DEFAULT '[]', -- Match averages history for progression graphs
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (user_id, guild_id)

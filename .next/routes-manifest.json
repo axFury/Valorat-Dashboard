@@ -108,6 +108,14 @@
         "nxtPmatchId": "nxtPmatchId"
       },
       "namedRegex": "^/dashboard/darts/match/(?<nxtPmatchId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/dashboard/darts/profile/[userId]",
+      "regex": "^/dashboard/darts/profile/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/dashboard/darts/profile/(?<nxtPuserId>[^/]+?)(?:/)?$"
     }
   ],
   "staticRoutes": [

@@ -19,19 +19,18 @@ async function getDiscordUser(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
     const user = await getDiscordUser(req);
-    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
+    const userId = req.nextUrl.searchParams.get("userId") || user?.id;
     const guildId = req.nextUrl.searchParams.get("guildId");
     if (!guildId) return NextResponse.json({ error: "Missing guildId" }, { status: 400 });
 
     const supa = getSupa();
 
-    // Fetch stats for the connected user
+    // Fetch stats for the target user (or current user)
     const { data: stats, error } = await supa
         .from("darts_stats")
         .select("*")
         .eq("guild_id", guildId)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
     // If no stats yet, return default empty stats

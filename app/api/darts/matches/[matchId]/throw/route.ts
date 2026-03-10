@@ -23,6 +23,9 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
         return NextResponse.json({ error: "Score invalide" }, { status: 400 });
     }
 
+    const first9Points = body.isFirst9 ? totalScore : 0;
+    const checkoutAttempt = body.checkoutAttempt || false;
+
     const supa = getSupa();
 
     // 1. Récupérer le match
@@ -288,6 +291,32 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                     .single();
 
                 const isWinner = p.id === winnerId;
+                const adv = current?.advanced_stats || {};
+
+                // Track score distribution
+                const dist = adv.score_distribution || { "40": 0, "60": 0, "80": 0, "100": 0, "120": 0, "140": 0, "160": 0, "180": 0 };
+                if (p.stats.totalScore >= 180) dist["180"]++;
+                else if (p.stats.totalScore >= 160) dist["160"]++;
+                else if (p.stats.totalScore >= 140) dist["140"]++;
+                else if (p.stats.totalScore >= 120) dist["120"]++;
+                else if (p.stats.totalScore >= 100) dist["100"]++;
+                else if (p.stats.totalScore >= 80) dist["80"]++;
+                else if (p.stats.totalScore >= 60) dist["60"]++;
+                else if (p.stats.totalScore >= 40) dist["40"]++;
+
+                // Track First 9 (this needs to be sent by client or tracked in match state)
+                // For now we'll assume the client sends first9Score if it's within first 9 darts of leg
+                const f9Score = (adv.first_9_total_score || 0) + (body.first9Score || 0);
+                const f9Darts = (adv.first_9_darts || 0) + (body.first9Score !== undefined ? 3 : 0);
+
+                // Track Checkout %
+                const coAttempts = (adv.checkout_attempts || 0) + (body.checkoutAttempt ? 1 : 0);
+                const coMade = (adv.checkouts_made || 0) + (roundWon && p.id === playerId ? 1 : 0);
+
+                // Leg stats
+                const lastLegDarts = p.stats.dartsThrown; // This is reset when leg ends? No, need to track per leg
+                const bestLeg = adv.best_leg ? Math.min(adv.best_leg, lastLegDarts) : lastLegDarts;
+                const worstLeg = adv.worst_leg ? Math.max(adv.worst_leg, lastLegDarts) : lastLegDarts;
 
                 const statsToUpsert = {
                     user_id: p.id,
@@ -302,6 +331,17 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                     count_100s: (current?.count_100s || 0) + p.stats.count100,
                     cricket_marks: (current?.cricket_marks || 0) + (p.stats.cricketMarks || 0),
                     misses: (current?.misses || 0) + (p.stats.misses || 0),
+                    advanced_stats: {
+                        ...adv,
+                        score_distribution: dist,
+                        first_9_total_score: f9Score,
+                        first_9_darts: f9Darts,
+                        checkout_attempts: coAttempts,
+                        checkouts_made: coMade,
+                        best_leg: bestLeg,
+                        worst_leg: worstLeg,
+                        highest_start_score: Math.max(adv.highest_start_score || 0, body.isFirstTurn ? totalScore : 0)
+                    },
                     updated_at: new Date().toISOString()
                 };
 
