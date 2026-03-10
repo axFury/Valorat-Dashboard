@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, ArrowLeft, RotateCcw, Crosshair, Crown } from "lucide-react"
@@ -16,7 +16,8 @@ export default function DartsLiveMatchPage() {
     const [match, setMatch] = useState<MatchState | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [scoreInput, setScoreInput] = useState<string>("")
+    const [currentDarts, setCurrentDarts] = useState<{ value: number, multiplier: number }[]>([])
+    const [multiplier, setMultiplier] = useState<1 | 2 | 3>(1)
     const [submitting, setSubmitting] = useState(false)
 
     // Load Match Real Time
@@ -38,31 +39,73 @@ export default function DartsLiveMatchPage() {
 
     useEffect(() => {
         fetchMatch()
-        // Here we could implement Supabase Realtime subscription
-        // for online multiplayer. For now, manual/action refresh is fine for local.
     }, [fetchMatch])
 
-    const handleNumpadClick = (val: string) => {
-        if (scoreInput.length < 3) {
-            setScoreInput(prev => prev + val)
+    const activePlayer = match?.players[match?.currentPlayerIndex]
+
+    const handleDartClick = async (value: number) => {
+        if (!activePlayer || isFinished || submitting) return;
+
+        // Prevent invalid multiplier/value combinations (e.g. Triple 25)
+        let actualMultiplier = multiplier;
+        if (value === 0) actualMultiplier = 1; // Miss is always 1x0
+        if (value === 25 && actualMultiplier === 3) actualMultiplier = 1; // No Triple Bull, fallback to single bull or you can restrict UI. We'll map T25 to disabled in UI anyway.
+        if (value === 50) actualMultiplier = 1; // Bullseye is 50, logically it's Double 25 but we treat it as 50x1 for the throw value.
+
+        const newDarts = [...currentDarts, { value, multiplier: actualMultiplier }];
+        setCurrentDarts(newDarts);
+        setMultiplier(1); // Reset multiplier after throw
+
+        // Calculate theoretical remaining score
+        const totalScoreSoFar = newDarts.reduce((acc, d) => acc + (d.value * d.multiplier), 0);
+        const remaining = activePlayer.scoreLeft - totalScoreSoFar;
+
+        let shouldAutoSubmit = false;
+        let isCheckout = false;
+
+        // BUST detection
+        if (remaining < 0) {
+            shouldAutoSubmit = true;
+        } else if (match.rules.outRule === 'double') {
+            if (remaining === 1) shouldAutoSubmit = true;
+            if (remaining === 0) {
+                // Must finish on a double (or Bullseye which is D25 logically, mapped as value 50 or multiplier 2 value 25)
+                const lastDart = newDarts[newDarts.length - 1];
+                const isDouble = lastDart.multiplier === 2 || lastDart.value === 50;
+                if (!isDouble) {
+                    shouldAutoSubmit = true; // Bust because finished on single
+                } else {
+                    isCheckout = true;
+                    shouldAutoSubmit = true; // WIN
+                }
+            }
+        } else if (remaining === 0) {
+            isCheckout = true;
+            shouldAutoSubmit = true; // WIN (straight out)
+        }
+
+        // 3 Darts thrown
+        if (newDarts.length === 3 && !shouldAutoSubmit) {
+            shouldAutoSubmit = true;
+        }
+
+        if (shouldAutoSubmit) {
+            await submitTurn(newDarts, isCheckout);
         }
     }
 
-    const handleBackspace = () => {
-        setScoreInput(prev => prev.slice(0, -1))
+    const handleUndoDart = () => {
+        if (currentDarts.length > 0) {
+            setCurrentDarts(prev => prev.slice(0, -1));
+        }
     }
 
-    const submitScore = async (isCheckout: boolean = false) => {
-        if (!match || !scoreInput || submitting) return
-        const score = parseInt(scoreInput, 10)
-
-        if (isNaN(score) || score < 0 || score > 180) {
-            alert("Score invalide. Maximum 180.")
-            return
-        }
-
+    const submitTurn = async (dartsToSubmit: { value: number, multiplier: number }[], checkout: boolean) => {
+        if (!activePlayer || submitting) return
         setSubmitting(true)
-        const activePlayer = match.players[match.currentPlayerIndex]
+
+        const totalScore = dartsToSubmit.reduce((acc, d) => acc + (d.value * d.multiplier), 0);
+        const dartsThrown = dartsToSubmit.length;
 
         try {
             const res = await fetch(`/api/darts/matches/${matchId}/throw`, {
@@ -70,15 +113,17 @@ export default function DartsLiveMatchPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     playerId: activePlayer.id,
-                    totalScore: score,
-                    isCheckout
+                    totalScore: totalScore,
+                    isCheckout: checkout,
+                    dartsThrown: dartsThrown
                 })
             })
             const data = await res.json()
             if (!res.ok) {
                 alert(data.error || "Erreur lors de l'enregistrement.")
             } else {
-                setScoreInput("")
+                setCurrentDarts([])
+                setMultiplier(1)
                 await fetchMatch() // Refresh State
             }
         } catch (e) {
@@ -88,12 +133,12 @@ export default function DartsLiveMatchPage() {
         }
     }
 
-    if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin" /></div>
-    if (error || !match) return <div className="text-center py-20 text-red-500">{error}</div>
+    if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-red-500" /></div>
+    if (error || !match) return <div className="text-center py-20 text-red-500 font-bold">{error}</div>
 
-    const activePlayer = match.players[match.currentPlayerIndex]
-    const suggestion = getCheckoutSuggestion(activePlayer.scoreLeft)
+    const suggestion = activePlayer ? getCheckoutSuggestion(activePlayer.scoreLeft) : null
     const isFinished = match.status === "finished"
+    const currentTurnScore = currentDarts.reduce((sum, d) => sum + (d.value * d.multiplier), 0);
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -195,67 +240,102 @@ export default function DartsLiveMatchPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4 bg-background px-6 py-3 rounded-xl border border-border shadow-inner min-w-[200px] justify-center">
-                                    <span className="text-4xl font-mono font-bold text-red-500">
-                                        {scoreInput || "0"}
-                                    </span>
+                                <div className="flex items-center gap-2 bg-background px-4 py-2 rounded-xl border border-border shadow-inner min-w-[150px] justify-center text-2xl font-mono font-bold">
+                                    {currentDarts.map((d, i) => (
+                                        <span key={i} className={d.multiplier === 3 ? "text-red-500" : d.multiplier === 2 ? "text-orange-500" : "text-white"}>
+                                            {d.multiplier === 3 ? 'T' : d.multiplier === 2 ? 'D' : ''}{d.value === 50 ? 'BULL' : d.value === 25 ? '25' : d.value === 0 ? 'MISS' : d.value}
+                                        </span>
+                                    ))}
+                                    {currentDarts.length < 3 && Array.from({ length: 3 - currentDarts.length }).map((_, i) => (
+                                        <span key={`empty-${i}`} className="text-muted-foreground/30">-</span>
+                                    ))}
+                                    {(currentTurnScore > 0) && (
+                                        <Badge variant="secondary" className="ml-2 font-black">{currentTurnScore}</Badge>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Right Column : Numpad */}
+                    {/* Right Column : Dart Input Viewer */}
                     <div className="lg:col-span-4">
                         <Card className="border-border shadow-xl">
                             <CardHeader className="py-4">
-                                <CardTitle className="text-center text-sm font-bold uppercase tracking-wider">Score du Tour (3 Fléchettes)</CardTitle>
+                                <CardTitle className="text-center text-sm font-bold uppercase tracking-wider">Lancer</CardTitle>
                             </CardHeader>
                             <CardContent className="p-4 pt-0">
-                                <div className="grid grid-cols-3 gap-2">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+
+                                {/* Multiplier Tabs */}
+                                <div className="flex gap-2 mb-4">
+                                    <Button
+                                        variant={multiplier === 1 ? 'default' : 'secondary'}
+                                        className={`flex-1 font-black tracking-widest ${multiplier === 1 ? 'bg-sky-600 hover:bg-sky-500 text-white' : ''}`}
+                                        onClick={() => setMultiplier(1)}
+                                    >SIMPLE</Button>
+                                    <Button
+                                        variant={multiplier === 2 ? 'default' : 'secondary'}
+                                        className={`flex-1 font-black tracking-widest ${multiplier === 2 ? 'bg-orange-500 hover:bg-orange-400 text-white' : ''}`}
+                                        onClick={() => setMultiplier(2)}
+                                    >DOUBLE</Button>
+                                    <Button
+                                        variant={multiplier === 3 ? 'default' : 'secondary'}
+                                        className={`flex-1 font-black tracking-widest ${multiplier === 3 ? 'bg-red-600 hover:bg-red-500 text-white' : ''}`}
+                                        onClick={() => setMultiplier(3)}
+                                    >TRIPLE</Button>
+                                </div>
+
+                                {/* Numbers Grid */}
+                                <div className="grid grid-cols-4 gap-2">
+                                    {Array.from({ length: 20 }, (_, i) => i + 1).map(num => (
                                         <Button
                                             key={num}
-                                            variant="secondary"
-                                            className="h-16 text-2xl font-mono font-bold hover:bg-muted-foreground/20 hover:text-white"
-                                            onClick={() => handleNumpadClick(num.toString())}
+                                            variant="outline"
+                                            className="h-12 font-mono font-bold hover:bg-muted-foreground/20 hover:text-white"
+                                            onClick={() => handleDartClick(num)}
                                         >
                                             {num}
                                         </Button>
                                     ))}
+
                                     <Button
                                         variant="outline"
-                                        className="h-16 border-red-500/30 text-red-400 hover:bg-red-500/10"
-                                        onClick={handleBackspace}
+                                        className="h-12 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 font-bold col-span-2"
+                                        onClick={() => { setMultiplier(1); handleDartClick(25); }}
                                     >
-                                        <RotateCcw className="w-6 h-6" />
+                                        BULL (25)
                                     </Button>
                                     <Button
-                                        variant="secondary"
-                                        className="h-16 text-2xl font-mono font-bold hover:bg-muted-foreground/20 hover:text-white"
-                                        onClick={() => handleNumpadClick("0")}
+                                        variant="outline"
+                                        className="h-12 border-red-500/30 text-red-500 hover:bg-red-500/10 font-bold col-span-2"
+                                        onClick={() => { setMultiplier(1); handleDartClick(50); }}
                                     >
-                                        0
+                                        DBULL (50)
                                     </Button>
-
                                     <Button
-                                        className="h-16 bg-red-600 hover:bg-red-500 text-white font-bold text-lg"
-                                        onClick={() => submitScore(false)}
-                                        disabled={submitting || !scoreInput}
+                                        variant="outline"
+                                        className="h-12 col-span-2 text-muted-foreground hover:text-white"
+                                        onClick={() => { setMultiplier(1); handleDartClick(0); }}
                                     >
-                                        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "ENTRER"}
+                                        MISS (0)
                                     </Button>
-
+                                    <Button
+                                        variant="outline"
+                                        className="h-12 col-span-2 text-destructive hover:bg-destructive/20 border-destructive/20"
+                                        onClick={handleUndoDart}
+                                        disabled={currentDarts.length === 0}
+                                    >
+                                        <RotateCcw className="w-5 h-5 mr-2" /> SUPPR
+                                    </Button>
                                 </div>
-                                {suggestion && (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full mt-2 h-12 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10 font-bold tracking-widest"
-                                        onClick={() => submitScore(true)}
-                                        disabled={submitting || scoreInput !== activePlayer.scoreLeft.toString()}
-                                    >
-                                        CHECKOUT {activePlayer.scoreLeft}
-                                    </Button>
-                                )}
+
+                                <Button
+                                    className="w-full mt-4 h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-bold tracking-widest"
+                                    onClick={() => submitTurn(currentDarts, false)}
+                                    disabled={submitting || currentDarts.length === 0}
+                                >
+                                    {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                                    VALIDER {currentTurnScore > 0 ? `(${currentTurnScore})` : ''}
+                                </Button>
                             </CardContent>
                         </Card>
 

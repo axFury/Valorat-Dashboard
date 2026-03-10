@@ -47,9 +47,10 @@ export interface MatchState {
     rules: MatchRules;
     players: PlayerState[];
     currentPlayerIndex: number;
-    currentLegHistory: {
+    history: {
         playerId: string;
-        throws: DartThrow[]; // Les 3 fléchettes du tour
+        throws?: DartThrow[]; // Optional array of throws if needed in future
+        throwScore?: number; // Added to match what's actually pushed in api
         scoreBefore: number;
         scoreAfter: number;
         isBust: boolean;
