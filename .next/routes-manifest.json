@@ -1,0 +1,358 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/bot/[...path]",
+      "regex": "^/api/bot/(.+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPpath": "nxtPpath"
+      },
+      "namedRegex": "^/api/bot/(?<nxtPpath>.+?)(?:/)?$"
+    },
+    {
+      "page": "/api/casino/tcg/matches/[matchId]",
+      "regex": "^/api/casino/tcg/matches/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/api/casino/tcg/matches/(?<nxtPmatchId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/darts/matches/[matchId]",
+      "regex": "^/api/darts/matches/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/api/darts/matches/(?<nxtPmatchId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/darts/matches/[matchId]/throw",
+      "regex": "^/api/darts/matches/([^/]+?)/throw(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/api/darts/matches/(?<nxtPmatchId>[^/]+?)/throw(?:/)?$"
+    },
+    {
+      "page": "/api/guilds/[guildId]/channels",
+      "regex": "^/api/guilds/([^/]+?)/channels(?:/)?$",
+      "routeKeys": {
+        "nxtPguildId": "nxtPguildId"
+      },
+      "namedRegex": "^/api/guilds/(?<nxtPguildId>[^/]+?)/channels(?:/)?$"
+    },
+    {
+      "page": "/api/guilds/[guildId]/members",
+      "regex": "^/api/guilds/([^/]+?)/members(?:/)?$",
+      "routeKeys": {
+        "nxtPguildId": "nxtPguildId"
+      },
+      "namedRegex": "^/api/guilds/(?<nxtPguildId>[^/]+?)/members(?:/)?$"
+    },
+    {
+      "page": "/api/guilds/[guildId]/members/[userId]",
+      "regex": "^/api/guilds/([^/]+?)/members/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPguildId": "nxtPguildId",
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/api/guilds/(?<nxtPguildId>[^/]+?)/members/(?<nxtPuserId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/guilds/[guildId]/roles",
+      "regex": "^/api/guilds/([^/]+?)/roles(?:/)?$",
+      "routeKeys": {
+        "nxtPguildId": "nxtPguildId"
+      },
+      "namedRegex": "^/api/guilds/(?<nxtPguildId>[^/]+?)/roles(?:/)?$"
+    },
+    {
+      "page": "/dashboard/darts/match/[matchId]",
+      "regex": "^/dashboard/darts/match/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPmatchId": "nxtPmatchId"
+      },
+      "namedRegex": "^/dashboard/darts/match/(?<nxtPmatchId>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/api/announce/send",
+      "regex": "^/api/announce/send(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/announce/send(?:/)?$"
+    },
+    {
+      "page": "/api/auth/callback",
+      "regex": "^/api/auth/callback(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/callback(?:/)?$"
+    },
+    {
+      "page": "/api/auth/is-member",
+      "regex": "^/api/auth/is\\-member(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/is\\-member(?:/)?$"
+    },
+    {
+      "page": "/api/auth/user",
+      "regex": "^/api/auth/user(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/user(?:/)?$"
+    },
+    {
+      "page": "/api/casino/balance",
+      "regex": "^/api/casino/balance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/balance(?:/)?$"
+    },
+    {
+      "page": "/api/casino/blackjack",
+      "regex": "^/api/casino/blackjack(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/blackjack(?:/)?$"
+    },
+    {
+      "page": "/api/casino/crash",
+      "regex": "^/api/casino/crash(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/crash(?:/)?$"
+    },
+    {
+      "page": "/api/casino/mines",
+      "regex": "^/api/casino/mines(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/mines(?:/)?$"
+    },
+    {
+      "page": "/api/casino/roulette",
+      "regex": "^/api/casino/roulette(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/roulette(?:/)?$"
+    },
+    {
+      "page": "/api/casino/shop",
+      "regex": "^/api/casino/shop(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/shop(?:/)?$"
+    },
+    {
+      "page": "/api/casino/slots",
+      "regex": "^/api/casino/slots(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/slots(?:/)?$"
+    },
+    {
+      "page": "/api/casino/tcg/booster",
+      "regex": "^/api/casino/tcg/booster(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/tcg/booster(?:/)?$"
+    },
+    {
+      "page": "/api/casino/tcg/collection",
+      "regex": "^/api/casino/tcg/collection(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/tcg/collection(?:/)?$"
+    },
+    {
+      "page": "/api/casino/tcg/matches",
+      "regex": "^/api/casino/tcg/matches(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/tcg/matches(?:/)?$"
+    },
+    {
+      "page": "/api/casino/tcg/ranking",
+      "regex": "^/api/casino/tcg/ranking(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/casino/tcg/ranking(?:/)?$"
+    },
+    {
+      "page": "/api/cmd",
+      "regex": "^/api/cmd(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/cmd(?:/)?$"
+    },
+    {
+      "page": "/api/darts/matches",
+      "regex": "^/api/darts/matches(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/darts/matches(?:/)?$"
+    },
+    {
+      "page": "/api/guilds",
+      "regex": "^/api/guilds(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/guilds(?:/)?$"
+    },
+    {
+      "page": "/api/img",
+      "regex": "^/api/img(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/img(?:/)?$"
+    },
+    {
+      "page": "/api/leaderboard/settings",
+      "regex": "^/api/leaderboard/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/leaderboard/settings(?:/)?$"
+    },
+    {
+      "page": "/api/mod/purge",
+      "regex": "^/api/mod/purge(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/mod/purge(?:/)?$"
+    },
+    {
+      "page": "/api/mod/slowmode",
+      "regex": "^/api/mod/slowmode(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/mod/slowmode(?:/)?$"
+    },
+    {
+      "page": "/api/music/action",
+      "regex": "^/api/music/action(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/music/action(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/dashboard/announcements",
+      "regex": "^/dashboard/announcements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/announcements(?:/)?$"
+    },
+    {
+      "page": "/dashboard/casino",
+      "regex": "^/dashboard/casino(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/casino(?:/)?$"
+    },
+    {
+      "page": "/dashboard/darts",
+      "regex": "^/dashboard/darts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/darts(?:/)?$"
+    },
+    {
+      "page": "/dashboard/darts/setup",
+      "regex": "^/dashboard/darts/setup(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/darts/setup(?:/)?$"
+    },
+    {
+      "page": "/dashboard/economy",
+      "regex": "^/dashboard/economy(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/economy(?:/)?$"
+    },
+    {
+      "page": "/dashboard/leaderboards",
+      "regex": "^/dashboard/leaderboards(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/leaderboards(?:/)?$"
+    },
+    {
+      "page": "/dashboard/moderation",
+      "regex": "^/dashboard/moderation(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/moderation(?:/)?$"
+    },
+    {
+      "page": "/dashboard/music",
+      "regex": "^/dashboard/music(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/music(?:/)?$"
+    },
+    {
+      "page": "/dashboard/tcg",
+      "regex": "^/dashboard/tcg(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/tcg(?:/)?$"
+    },
+    {
+      "page": "/dashboard/tcg/booster",
+      "regex": "^/dashboard/tcg/booster(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/tcg/booster(?:/)?$"
+    },
+    {
+      "page": "/dashboard/tcg/combat",
+      "regex": "^/dashboard/tcg/combat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/tcg/combat(?:/)?$"
+    },
+    {
+      "page": "/dashboard/valorant",
+      "regex": "^/dashboard/valorant(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/valorant(?:/)?$"
+    },
+    {
+      "page": "/servers",
+      "regex": "^/servers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/servers(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

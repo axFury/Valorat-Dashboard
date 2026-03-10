@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/tcg/layout,_N_T_/dashboard/tcg/booster/layout,_N_T_/dashboard/tcg/booster/page,_N_T_/dashboard/tcg/booster"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/tcg/booster/__PAGE__",
+    "/dashboard/tcg/booster",
+    "/dashboard/tcg",
+    "/dashboard",
+    "/_index",
+    "/_head"
+  ]
+}

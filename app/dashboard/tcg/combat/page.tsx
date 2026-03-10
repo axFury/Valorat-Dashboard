@@ -31,8 +31,8 @@ type Match = {
 }
 
 const supa = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key'
 )
 
 export default function TCGCombatPage() {
@@ -609,9 +609,9 @@ export default function TCGCombatPage() {
                                         <div key={p.user_id} className={`flex items-center justify-between p-3 rounded-lg border ${p.user_id === userId ? "bg-primary/10 border-primary shadow-[0_0_15px_rgba(220,38,38,0.15)]" : "bg-zinc-900/50 border-zinc-800"}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-yellow-500 text-yellow-950" :
-                                                        i === 1 ? "bg-zinc-300 text-zinc-800" :
-                                                            i === 2 ? "bg-amber-700 text-white" :
-                                                                "bg-zinc-800 text-zinc-400"
+                                                    i === 1 ? "bg-zinc-300 text-zinc-800" :
+                                                        i === 2 ? "bg-amber-700 text-white" :
+                                                            "bg-zinc-800 text-zinc-400"
                                                     }`}>
                                                     {i + 1}
                                                 </div>

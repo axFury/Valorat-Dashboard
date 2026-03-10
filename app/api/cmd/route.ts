@@ -2,8 +2,8 @@ import { NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 const supa = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE!,
+  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE || 'placeholder_key',
   { auth: { persistSession: false } }
 )
 

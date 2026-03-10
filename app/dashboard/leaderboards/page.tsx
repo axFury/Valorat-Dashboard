@@ -26,8 +26,8 @@ export default function LeaderboardsPage() {
   const [currentWeek, setCurrentWeek] = useState("")
 
   const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key',
   )
 
   useEffect(() => {
@@ -205,15 +205,14 @@ export default function LeaderboardsPage() {
                     >
                       {/* Rank Badge */}
                       <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold ${
-                          entry.rank === 1
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold ${entry.rank === 1
                             ? "bg-yellow-500/20 text-yellow-500"
                             : entry.rank === 2
                               ? "bg-gray-400/20 text-gray-400"
                               : entry.rank === 3
                                 ? "bg-orange-600/20 text-orange-600"
                                 : "bg-primary/10 text-primary"
-                        }`}
+                          }`}
                       >
                         #{entry.rank}
                       </div>
@@ -269,15 +268,14 @@ export default function LeaderboardsPage() {
                     >
                       {/* Rank Badge */}
                       <div
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold ${
-                          entry.rank === 1
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold ${entry.rank === 1
                             ? "bg-yellow-500/20 text-yellow-500"
                             : entry.rank === 2
                               ? "bg-gray-400/20 text-gray-400"
                               : entry.rank === 3
                                 ? "bg-orange-600/20 text-orange-600"
                                 : "bg-primary/10 text-primary"
-                        }`}
+                          }`}
                       >
                         #{entry.rank}
                       </div>

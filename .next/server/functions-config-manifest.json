@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/bot/[...path]": {},
+    "/api/cmd": {},
+    "/api/img": {}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/tcg/layout,_N_T_/dashboard/tcg/combat/layout,_N_T_/dashboard/tcg/combat/page,_N_T_/dashboard/tcg/combat"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/tcg/combat/__PAGE__",
+    "/dashboard/tcg/combat",
+    "/dashboard/tcg",
+    "/dashboard",
+    "/_index",
+    "/_head"
+  ]
+}
