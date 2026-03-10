@@ -131,6 +131,7 @@ export default function DartsLiveMatchPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     playerId: activePlayer.id,
+                    darts: dartsToSubmit,
                     totalScore: totalScore,
                     isCheckout: checkout,
                     dartsThrown: dartsThrown
