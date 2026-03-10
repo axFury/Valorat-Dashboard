@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, ArrowLeft, RotateCcw, Crosshair, Crown } from "lucide-react"
 import { MatchState, PlayerState, getCheckoutSuggestion } from "@/lib/darts-engine"
+import { supabase } from "@/lib/supabase-client"
 
 export default function DartsLiveMatchPage() {
     const params = useParams()
@@ -39,7 +40,23 @@ export default function DartsLiveMatchPage() {
 
     useEffect(() => {
         fetchMatch()
-    }, [fetchMatch])
+
+        // Abonnement Supabase Realtime pour ce match
+        const channel = supabase.channel(`match_${matchId}`)
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'darts_matches', filter: `id=eq.${matchId}` },
+                (payload) => {
+                    // Si on était l'envoyeur, le fetch est déjà relancé, mais ça assure aux autres la synchronisation
+                    fetchMatch()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [fetchMatch, matchId])
 
     const activePlayer = match?.players[match?.currentPlayerIndex]
 

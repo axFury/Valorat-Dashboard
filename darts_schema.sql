@@ -21,6 +21,9 @@ CREATE INDEX IF NOT EXISTS idx_darts_matches_guild ON public.darts_matches(guild
 -- Index pour chercher par créateur (historique personnel)
 CREATE INDEX IF NOT EXISTS idx_darts_matches_creator ON public.darts_matches(creator_id);
 
+-- Activer Supabase Realtime pour cette table
+ALTER PUBLICATION supabase_realtime ADD TABLE darts_matches;
+
 -- Création de la table de statistiques (darts_stats)
 CREATE TABLE IF NOT EXISTS public.darts_stats (
     user_id TEXT NOT NULL,
