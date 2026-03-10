@@ -28,6 +28,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE darts_matches;
 CREATE TABLE IF NOT EXISTS public.darts_stats (
     user_id TEXT NOT NULL,
     guild_id TEXT NOT NULL,
+    user_name TEXT, -- Discord username
     matches_played INTEGER DEFAULT 0,
     matches_won INTEGER DEFAULT 0,
     darts_thrown INTEGER DEFAULT 0,

@@ -321,6 +321,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ matchId:
                 const statsToUpsert = {
                     user_id: p.id,
                     guild_id: match.guild_id,
+                    user_name: p.name,
                     matches_played: (current?.matches_played || 0) + 1,
                     matches_won: (current?.matches_won || 0) + (isWinner ? 1 : 0),
                     darts_thrown: (current?.darts_thrown || 0) + p.stats.dartsThrown,

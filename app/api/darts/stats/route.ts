@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
     // If no stats yet, return default empty stats
     if (error && error.code === 'PGRST116') {
         return NextResponse.json({
+            user_id: userId,
+            guild_id: guildId,
+            user_name: 'Joueur',
             matches_played: 0,
             matches_won: 0,
             darts_thrown: 0,
